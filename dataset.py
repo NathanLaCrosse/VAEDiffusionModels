@@ -8,7 +8,7 @@ class ChurchData(nn.Module):
 
     def __init__(self, file_dir="churches.npy"):
         super().__init__()
-        self.data = np.load(file_dir)
+        self.data = np.load(file_dir)[:700000] # Limit training data
 
     def __len__(self):
         return self.data.shape[0]

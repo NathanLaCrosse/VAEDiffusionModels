@@ -2,8 +2,9 @@ import torch
 import os
 from torch import nn
 import numpy as np
+from torch.utils.data import Dataset, DataLoader
 
-class ChurchData(nn.Module):
+class ChurchData(Dataset):
 
     def __init__(self, file_dir="churches.npy"):
         super().__init__()

@@ -3,22 +3,9 @@ import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
+from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
-
-class mushroomPictures(Dataset):
-    def __init__(self):
-        df = pd.read_csv("fashion-mnist_train.csv")
-        self.train_numbers = torch.tensor(df.iloc[:, 1:].to_numpy() / 255.0, dtype=torch.float).view(-1, 1, 28, 28)
-        self.train_labels = torch.tensor(df["label"].to_numpy(), dtype=torch.long)
-
-        self.len = len(self.train_labels)
-
-    def __getitem__(self, item):
-        return self.train_numbers[item]
-
-    def __len__(self):
-        return self.len
-
+import mushroomdata
 
 class Encoder(nn.Module):
     def __init__(self):
@@ -44,8 +31,8 @@ class Encoder(nn.Module):
         x = F.leaky_relu(self.bn_conv2(self.conv1_to_conv2(x)))
         x = F.leaky_relu(self.bn_conv3(self.conv2_to_conv3(x)))
         x = F.leaky_relu(self.bn_conv4(self.conv3_to_conv4(x)))
-        x = F.leaky_relu(self.bn_conv4(self.conv4_to_conv5(x)))
-        x = F.leaky_relu(self.bn_conv4(self.conv5_to_conv6(x)))
+        x = F.leaky_relu(self.bn_conv5(self.conv4_to_conv5(x)))
+        x = F.leaky_relu(self.bn_conv6(self.conv5_to_conv6(x)))
         mean = self.conv6_to_mean(x)
         log_var = self.conv6_to_log_var(x)
         log_var = torch.clamp(log_var, -10, 10)
@@ -58,8 +45,8 @@ class Encoder(nn.Module):
         x = F.leaky_relu(self.bn_conv2(self.conv1_to_conv2(x)))
         x = F.leaky_relu(self.bn_conv3(self.conv2_to_conv3(x)))
         x = F.leaky_relu(self.bn_conv4(self.conv3_to_conv4(x)))
-        x = F.leaky_relu(self.bn_conv4(self.conv4_to_conv5(x)))
-        x = F.leaky_relu(self.bn_conv4(self.conv5_to_conv6(x)))
+        x = F.leaky_relu(self.bn_conv5(self.conv4_to_conv5(x)))
+        x = F.leaky_relu(self.bn_conv6(self.conv5_to_conv6(x)))
         mean = self.conv6_to_mean(x)
         return mean
 
@@ -71,7 +58,8 @@ class Decoder(nn.Module):
         self.conv2_to_conv3 = nn.ConvTranspose2d(64, 128, kernel_size=(9, 9))  # 64x24x24 -> 128x32x32
         self.conv3_to_conv4 = nn.ConvTranspose2d(128, 256, kernel_size=(9, 9))  # 128x32x32 -> 256x40x40
         self.conv4_to_conv5 = nn.ConvTranspose2d(256, 512, kernel_size=(9, 9))  # 256x40x40 -> 512x48x48
-        self.conv5_to_out = nn.ConvTranspose2d(512, 3, kernel_size=(9, 9))  # 512x48x48 -> 3x64x64
+        self.conv5_to_conv6 = nn.ConvTranspose2d(512, 1024, kernel_size=(9,9))
+        self.conv6_to_out = nn.ConvTranspose2d(1024, 3, kernel_size=(9, 9))  # 512x48x48 -> 3x64x64
 
     def forward(self, x):
         x = F.leaky_relu(self.latent_to_conv1(x))
@@ -79,7 +67,8 @@ class Decoder(nn.Module):
         x = F.leaky_relu(self.conv2_to_conv3(x))
         x = F.leaky_relu(self.conv3_to_conv4(x))
         x = F.leaky_relu(self.conv4_to_conv5(x))
-        return self.conv5_to_out(x)
+        x = F.leaky_relu(self.conv5_to_conv6(x))
+        return self.conv6_to_out(x)
 
 class AutoEncoder(nn.Module):
     def __init__(self):
@@ -93,13 +82,13 @@ class AutoEncoder(nn.Module):
 
 def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5):
     #Load the picture data
-    dataset = mushroomPictures()
+    dataset = mushroomdata.MushroomData("DataJsons/traindirs.json")
     dataloader = DataLoader(dataset, batch_size, shuffle=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using {device}.")
     model = AutoEncoder().to(device)
-    loss_fn = nn.MSELoss(reduction="sum")
+    loss_fn = nn.BCEWithLogitsLoss(reduction="sum")
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     beta_multiplier = 1.0
     period_length = epochs * len(dataloader) / num_periods
@@ -107,7 +96,7 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5):
     for epoch in range(epochs):
         p_bar = tqdm(dataloader, desc=f"Epoch [{epoch + 1} / {epochs}]")
         for images in p_bar:
-            images = images.to(device)
+            images = images[0].to(device)
 
             beta = beta_multiplier * np.sin(np.pi * (batch_idx % period_length) / period_length)
 
@@ -121,3 +110,5 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5):
             p_bar.set_postfix({'Loss': loss.item(), 'KL_div': KL_div.item(), 'beta': beta})
 
     torch.save(model.state_dict(), "mushroom_vae.pt")
+
+train_nn()

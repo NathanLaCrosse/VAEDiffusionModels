@@ -43,3 +43,4 @@ class BottleneckBlock(nn.Module):
             bottleneck = F.dropout(bottleneck, p=self.dropout_p)
 
         x = F.relu(x + bottleneck)
+        return x

@@ -6,6 +6,8 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 import mushroomdata
+from NathanVAE import VAE
+
 
 class Encoder(nn.Module):
     def __init__(self):
@@ -80,6 +82,12 @@ class AutoEncoder(nn.Module):
         x, KL_div = self.encoder(x)
         return self.decoder(x), KL_div
 
+
+
+
+
+
+
 def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5):
     #Load the picture data
     dataset = mushroomdata.MushroomData("DataJsons/traindirs.json")
@@ -87,12 +95,16 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using {device}.")
-    model = AutoEncoder().to(device)
+
+    model = VAE().to(device)
+
     loss_fn = nn.BCEWithLogitsLoss(reduction="sum")
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+
     beta_multiplier = 1.0
     period_length = epochs * len(dataloader) / num_periods
     batch_idx = 0
+
     for epoch in range(epochs):
         p_bar = tqdm(dataloader, desc=f"Epoch [{epoch + 1} / {epochs}]")
         for images in p_bar:
@@ -111,4 +123,6 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5):
 
     torch.save(model.state_dict(), "mushroom_vae.pt")
 
-train_nn()
+epochs = 5
+batch_size = 64
+train_nn(epochs, batch_size)

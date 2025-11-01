@@ -65,7 +65,7 @@ class MushroomData(Dataset):
         path, label = self.data[item]
 
         im = cv2.imread(path)[:,:,::-1]
-        im = im * 2 / 255 - 1   # Scale to be in [-1, 1]
+        im = im / 255  # Scale to be in [0, 1]
         im = torch.tensor(im).permute(2, 0, 1).contiguous()
 
         return im, label

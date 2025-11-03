@@ -1,7 +1,17 @@
+import cv2
+import numpy as np
 import torch
+from fontTools.unicodedata import block
 from torch import nn
 import torch.nn.functional as F
+from torch.nn.functional import dropout
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+import matplotlib.pyplot as plot
+
 import NetworkComponents as nc
+import mushroomdata
+
 
 class NBottleneckBlocks(nn.Module):
 
@@ -59,6 +69,19 @@ class Encoder(nn.Module):
 
         return mean + std * torch.randn_like(logvar), KL_div
 
+    def forward_static(self, x):
+        x = self.initial(x)
+        x = self.layer1(x)
+        x = self.down1(x)
+        x = self.layer2(x)
+        x = self.down2(x)
+        x = self.layer3(x)
+        x = self.down3(x)
+        x = self.layer4(x)
+
+        mean = self.to_mean(x)
+        return mean
+
 
 class Decoder(nn.Module):
     """
@@ -99,3 +122,63 @@ class VAE(nn.Module):
     def forward(self, x):
         x, KL_div = self.encoder(x)
         return self.decoder(x), KL_div
+
+def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5):
+    #Load the picture data
+    dataset = mushroomdata.MushroomData("DataJsons/traindirs.json")
+    dataloader = DataLoader(dataset, batch_size, shuffle=True)
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using {device}.")
+
+    model = VAE().to(device)
+
+    loss_fn = nn.BCEWithLogitsLoss(reduction="sum")
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+
+    beta_multiplier = 1.0
+    period_length = epochs * len(dataloader) / num_periods
+    batch_idx = 0
+
+    cv2.namedWindow("Original / Reconstruction")
+
+    losses = []
+    for epoch in range(epochs):
+        p_bar = tqdm(dataloader, desc=f"Epoch [{epoch + 1} / {epochs}]")
+        for images in p_bar:
+            images = images[0].to(device)
+
+            beta = beta_multiplier * np.sin(np.pi * (batch_idx % period_length) / period_length)
+
+            optimizer.zero_grad()
+            outputs, KL_div = model(images)
+            loss = loss_fn(outputs, images) + beta * KL_div
+            losses.append(loss.item())
+            loss.backward()
+            optimizer.step()
+
+            batch_idx += 1
+            p_bar.set_postfix({'Loss': loss.item(), 'KL_div': KL_div.item(), 'beta': beta})
+
+            if batch_idx % 4 == 0:
+                with torch.no_grad():
+                    img = images[0].unsqueeze(0)
+                    latent = model.encoder.forward_static(img)
+                    reconstructed_img = F.sigmoid(model.decoder(latent)[0]).cpu().numpy()
+                img = np.concatenate((img[0].cpu().numpy()[0], reconstructed_img[0]), axis=1)
+                cv2.imshow("Original / Reconstruction", cv2.resize(np.uint8(255 * img), (560, 280)))
+                cv2.waitKey(1)
+                # if len(losses) < 200:
+                plot.plot(losses)
+                # else:
+                #     plot.close()
+                #     plot.plot(losses[-199:])
+                plot.show(block=False)
+                plot.pause(0.001)
+        cv2.destroyAllWindows()
+
+    torch.save(model.state_dict(), "mushroom_vae.pt")
+
+epochs = 5
+batch_size = 64
+train_nn(epochs, batch_size)

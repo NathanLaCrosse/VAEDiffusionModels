@@ -24,7 +24,7 @@ class Encoder(nn.Module):
     Compress an image down to a latent space of 4 x 8 x 8
     Utilizes residual layers similar to a ResNet model
     """
-    def __init__(self):
+    def __init__(self, latent_channels=4):
         super(Encoder, self).__init__()
 
         self.initial = nn.Conv2d(3, 16, 3, 1, 1) # 16 x 64 x 64
@@ -37,8 +37,8 @@ class Encoder(nn.Module):
         self.layer4 = NBottleneckBlocks(4, 128, 32) # 128 x 8 x 8
 
         # Extract mean and logvar -> 4 x 8 x 8
-        self.to_mean = nn.Conv2d(128, 4, 1)
-        self.to_logvar = nn.Conv2d(128, 4, 1)
+        self.to_mean = nn.Conv2d(128, latent_channels, 1)
+        self.to_logvar = nn.Conv2d(128, latent_channels, 1)
 
     def forward(self, x):
         x = self.initial(x)
@@ -64,10 +64,10 @@ class Decoder(nn.Module):
     """
     Converts a latent back into an image.
     """
-    def __init__(self):
+    def __init__(self, latent_channels=4):
         super(Decoder, self).__init__()
 
-        self.initial = nn.Conv2d(4, 128, 3, 1, 1) # 128 x 8 x 8
+        self.initial = nn.Conv2d(latent_channels, 128, 3, 1, 1) # 128 x 8 x 8
         self.layer1 = NBottleneckBlocks(4, 128, 32) # 128 x 8 x 8
         self.up1 = nn.ConvTranspose2d(128, 64, 2, 2) # 64 x 16 x 16
         self.layer2 = NBottleneckBlocks(4, 64, 16) # 64 x 16 x 16
@@ -90,11 +90,11 @@ class Decoder(nn.Module):
 
 
 class VAE(nn.Module):
-    def __init__(self):
+    def __init__(self, latent_channels=4):
         super(VAE, self).__init__()
 
-        self.encoder = Encoder()
-        self.decoder = Decoder()
+        self.encoder = Encoder(latent_channels=latent_channels)
+        self.decoder = Decoder(latent_channels=latent_channels)
 
     def forward(self, x):
         x, KL_div = self.encoder(x)

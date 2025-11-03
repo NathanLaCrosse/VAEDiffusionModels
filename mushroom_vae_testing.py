@@ -9,16 +9,22 @@ import mushroomdata
 from NathanVAE import VAE
 import matplotlib.pyplot as plt
 
-dat = mushroomdata.MushroomData("DataJsons/testdirs.json")
-model = VAE()
+model = VAE(latent_channels=32)
 
-model.load_state_dict(torch.load("mushroom_vae.pt"))
+model.load_state_dict(torch.load("mushroom_vaecm.pt"))
+
+mse_mode = True
+dat = mushroomdata.MushroomData("DataJsons/testdirs.json", mse_mode=mse_mode)
 
 with torch.no_grad():
     for im, label in dat:
         pred = model(im.view(1, 3, 64, 64))
         pred = pred[0][0]
-        pred = F.sigmoid(pred)
+        if mse_mode:
+            pred = (pred + 1) / 2
+            im = (im + 1) / 2
+        else:
+            pred = F.sigmoid(pred)
 
         im = im.permute(1,2,0)
         pred = pred.permute(1,2,0)

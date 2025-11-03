@@ -88,17 +88,23 @@ class AutoEncoder(nn.Module):
 
 
 
-def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, save_file="mushroom_vae.pt"):
+def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, save_file="mushroom_vae.pt", load_file=None, latent_channels=4, mse_mode=False):
     #Load the picture data
-    dataset = mushroomdata.MushroomData("DataJsons/traindirs.json")
+    dataset = mushroomdata.MushroomData("DataJsons/traindirs.json", mse_mode=mse_mode)
     dataloader = DataLoader(dataset, batch_size, shuffle=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using {device}.")
 
-    model = VAE().to(device)
+    model = VAE(latent_channels=latent_channels).to(device)
 
-    loss_fn = nn.BCEWithLogitsLoss(reduction="sum")
+    if load_file is not None:
+        model.load_state_dict(torch.load(load_file))
+
+    if mse_mode:
+        loss_fn = nn.MSELoss(reduction="sum")
+    else:
+        loss_fn = nn.BCEWithLogitsLoss(reduction="sum")
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     beta_multiplier = beta_mult
@@ -121,10 +127,17 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, s
             batch_idx += 1
             p_bar.set_postfix({'Loss': loss.item(), 'KL_div': KL_div.item(), 'beta': beta})
 
-    torch.save(model.state_dict(), save_file)
+        torch.save(model.state_dict(), save_file)
 
-epochs = 10
-batch_size = 256
-train_nn(epochs, batch_size, lr=0.001, num_periods=2, beta_mult=0.01, save_file="mushroom_vae1.pt")
-train_nn(epochs, batch_size, lr=0.001, num_periods=2, beta_mult=0.001, save_file="mushroom_vae2.pt")
-train_nn(epochs, batch_size, lr=0.001, num_periods=2, beta_mult=10, save_file="mushroom_vae3.pt")
+epochs = 60
+batch_size = 128
+train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=1, save_file="mushroom_vaea.pt", load_file=None, latent_channels=8)
+train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=1, save_file="mushroom_vaeam.pt", load_file=None, latent_channels=8, mse_mode=True)
+train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=1, save_file="mushroom_vaeb.pt", load_file=None, latent_channels=16)
+train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=1, save_file="mushroom_vaebm.pt", load_file=None, latent_channels=16, mse_mode=True)
+train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=1, save_file="mushroom_vaec.pt", load_file=None, latent_channels=32)
+train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=1, save_file="mushroom_vaecm.pt", load_file=None, latent_channels=32, mse_mode=True)
+# train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=0.1, save_file="mushroom_vae2.pt")
+# train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=1, save_file="mushroom_vae3.pt")
+# train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=10, save_file="mushroom_vae4.pt")
+# train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=100, save_file="mushroom_vae5.pt")

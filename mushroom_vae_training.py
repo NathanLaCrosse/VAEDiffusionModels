@@ -129,14 +129,13 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, s
 
         torch.save(model.state_dict(), save_file)
 
-epochs = 60
+epochs = 100
 batch_size = 128
-train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=1, save_file="mushroom_vaea.pt", load_file=None, latent_channels=8)
-train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=1, save_file="mushroom_vaeam.pt", load_file=None, latent_channels=8, mse_mode=True)
-train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=1, save_file="mushroom_vaeb.pt", load_file=None, latent_channels=16)
-train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=1, save_file="mushroom_vaebm.pt", load_file=None, latent_channels=16, mse_mode=True)
-train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=1, save_file="mushroom_vaec.pt", load_file=None, latent_channels=32)
-train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=1, save_file="mushroom_vaecm.pt", load_file=None, latent_channels=32, mse_mode=True)
+train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=10, save_file="beta0.pt", load_file=None, latent_channels=16)
+train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=50, save_file="beta1.pt", load_file=None, latent_channels=16)
+train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=100, save_file="beta2.pt", load_file=None, latent_channels=16)
+train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=500, save_file="beta3.pt", load_file=None, latent_channels=16)
+train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=1000, save_file="beta4.pt", load_file=None, latent_channels=16)
 # train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=0.1, save_file="mushroom_vae2.pt")
 # train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=1, save_file="mushroom_vae3.pt")
 # train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=10, save_file="mushroom_vae4.pt")

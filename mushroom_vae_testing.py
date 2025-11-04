@@ -9,11 +9,11 @@ import mushroomdata
 from NathanVAE import VAE
 import matplotlib.pyplot as plt
 
-model = VAE(latent_channels=32)
+model = VAE(latent_channels=16)
 
-model.load_state_dict(torch.load("mushroom_vaecm.pt"))
+model.load_state_dict(torch.load("beta4.pt"))
 
-mse_mode = True
+mse_mode = False
 dat = mushroomdata.MushroomData("DataJsons/testdirs.json", mse_mode=mse_mode)
 
 with torch.no_grad():

@@ -124,7 +124,7 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, p
 
     reconstruction_loss = nn.BCEWithLogitsLoss(reduction="sum")
     # percep_loss = PerceptualLoss()
-    percep_loss = lpips.LPIPS(net='alex')
+    percep_loss = lpips.LPIPS(net='alex').to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
@@ -144,7 +144,7 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, p
 
             # Loss consists of three terms - reconstruction, perceptual, KL-divergence
             r_loss = reconstruction_loss(outputs, images)
-            p_loss = percep_loss(outputs, images).sum()
+            p_loss = percep_loss(outputs, images).mean()
             k_loss = KL_div
 
             loss = r_loss + p_loss * percep_mult + k_loss * beta
@@ -161,10 +161,14 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, p
             })
 
         torch.save(model.state_dict(), save_file)
+        if (epoch+1) % 60 == 0:
+            torch.save(model.state_dict(), f"inprogress{epoch}" + save_file)
 
-epochs = 2
-batch_size = 16
-train_nn(epochs, batch_size, lr=0.001, num_periods=0.5, beta_mult=10, percep_mult=1e5, save_file="PTFiles/percep.pt", load_file="PTFiles/beta1.pt", latent_channels=16)
+epochs = 150
+batch_size = 128
+train_nn(epochs, batch_size, lr=0.001, num_periods=12.25, beta_mult=15, percep_mult=3e6, save_file="PTFiles/percep1.pt", load_file=None, latent_channels=16)
+train_nn(epochs, batch_size, lr=0.001, num_periods=25.5, beta_mult=15, percep_mult=3e6, save_file="PTFiles/percep2.pt", load_file=None, latent_channels=16)
+train_nn(epochs, batch_size, lr=0.001, num_periods=13.75, beta_mult=15, percep_mult=3e6, save_file="PTFiles/percep3.pt", load_file=None, latent_channels=16)
 # train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=50, save_file="beta1.pt", load_file=None, latent_channels=16)
 # train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=100, save_file="beta2.pt", load_file=None, latent_channels=16)
 # train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=500, save_file="beta3.pt", load_file=None, latent_channels=16)
@@ -173,3 +177,5 @@ train_nn(epochs, batch_size, lr=0.001, num_periods=0.5, beta_mult=10, percep_mul
 # train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=1, save_file="mushroom_vae3.pt")
 # train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=10, save_file="mushroom_vae4.pt")
 # train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=100, save_file="mushroom_vae5.pt")
+
+# Percep loss starts around 0.4 - check on later

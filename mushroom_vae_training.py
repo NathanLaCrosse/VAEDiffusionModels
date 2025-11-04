@@ -7,7 +7,8 @@ from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 import mushroomdata
 from NathanVAE import VAE
-
+import torchvision.models as models
+import lpips
 
 class Encoder(nn.Module):
     def __init__(self):
@@ -86,9 +87,29 @@ class AutoEncoder(nn.Module):
 
 
 
+# class PerceptualLoss(nn.Module):
+#     """
+#     Loads a pre-trained model (vgg19) to compute perceptual loss.
+#     """
+#     def __init__(self, layers=[8, 17, 26]):
+#         super().__init__()
+#         vgg = models.vgg11(weights=models.VGG11_Weights.IMAGENET1K_V1).features.eval()
+#         self.vgg_layers = vgg
+#         self.layers = layers
+#         for param in self.vgg_layers.parameters():
+#             param.requires_grad = False
+#
+#     def forward(self, pred, target):
+#         loss = torch.zeros(1)
+#         for i, layer in enumerate(self.vgg_layers):
+#             pred = layer(pred)
+#             target = layer(target)
+#             if i in self.layers:
+#                 loss += torch.nn.functional.l1_loss(pred, target, reduction="sum")
+#         return loss
 
 
-def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, save_file="mushroom_vae.pt", load_file=None, latent_channels=4, mse_mode=False):
+def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, percep_mult=1, save_file="mushroom_vae.pt", load_file=None, latent_channels=4, mse_mode=False):
     #Load the picture data
     dataset = mushroomdata.MushroomData("DataJsons/traindirs.json", mse_mode=mse_mode)
     dataloader = DataLoader(dataset, batch_size, shuffle=True)
@@ -99,12 +120,12 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, s
     model = VAE(latent_channels=latent_channels).to(device)
 
     if load_file is not None:
-        model.load_state_dict(torch.load(load_file))
+        model.load_state_dict(torch.load(load_file, map_location=device))
 
-    if mse_mode:
-        loss_fn = nn.MSELoss(reduction="sum")
-    else:
-        loss_fn = nn.BCEWithLogitsLoss(reduction="sum")
+    reconstruction_loss = nn.BCEWithLogitsLoss(reduction="sum")
+    # percep_loss = PerceptualLoss()
+    percep_loss = lpips.LPIPS(net='alex')
+
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     beta_multiplier = beta_mult
@@ -120,22 +141,34 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, s
 
             optimizer.zero_grad()
             outputs, KL_div = model(images)
-            loss = loss_fn(outputs, images) + beta * KL_div
+
+            # Loss consists of three terms - reconstruction, perceptual, KL-divergence
+            r_loss = reconstruction_loss(outputs, images)
+            p_loss = percep_loss(outputs, images).sum()
+            k_loss = KL_div
+
+            loss = r_loss + p_loss * percep_mult + k_loss * beta
             loss.backward()
             optimizer.step()
 
             batch_idx += 1
-            p_bar.set_postfix({'Loss': loss.item(), 'KL_div': KL_div.item(), 'beta': beta})
+            # Print out unscaled loss values
+            p_bar.set_postfix({
+                'Recon Loss' : r_loss.item(),
+                'Percep Loss' : p_loss.item(),
+                'KL Loss' : k_loss.item(),
+                'Beta' : beta
+            })
 
         torch.save(model.state_dict(), save_file)
 
-epochs = 100
-batch_size = 128
-train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=10, save_file="beta0.pt", load_file=None, latent_channels=16)
-train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=50, save_file="beta1.pt", load_file=None, latent_channels=16)
-train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=100, save_file="beta2.pt", load_file=None, latent_channels=16)
-train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=500, save_file="beta3.pt", load_file=None, latent_channels=16)
-train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=1000, save_file="beta4.pt", load_file=None, latent_channels=16)
+epochs = 2
+batch_size = 16
+train_nn(epochs, batch_size, lr=0.001, num_periods=0.5, beta_mult=10, percep_mult=1e5, save_file="PTFiles/percep.pt", load_file="PTFiles/beta1.pt", latent_channels=16)
+# train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=50, save_file="beta1.pt", load_file=None, latent_channels=16)
+# train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=100, save_file="beta2.pt", load_file=None, latent_channels=16)
+# train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=500, save_file="beta3.pt", load_file=None, latent_channels=16)
+# train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=1000, save_file="beta4.pt", load_file=None, latent_channels=16)
 # train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=0.1, save_file="mushroom_vae2.pt")
 # train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=1, save_file="mushroom_vae3.pt")
 # train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=10, save_file="mushroom_vae4.pt")

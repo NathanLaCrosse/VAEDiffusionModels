@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 model = VAE(latent_channels=16)
 
-model.load_state_dict(torch.load("beta4.pt"))
+model.load_state_dict(torch.load("PTFiles/Beta5.pt", map_location=torch.device('cpu')))
 
 mse_mode = False
 dat = mushroomdata.MushroomData("DataJsons/testdirs.json", mse_mode=mse_mode)
@@ -32,5 +32,7 @@ with torch.no_grad():
         fig, ax = plt.subplots(1, 2)
 
         ax[0].imshow(im)
+        ax[0].set_title("Original")
         ax[1].imshow(pred)
+        ax[1].set_title("Model Output")
         plt.show()

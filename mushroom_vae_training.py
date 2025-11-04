@@ -99,7 +99,7 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, s
     model = VAE(latent_channels=latent_channels).to(device)
 
     if load_file is not None:
-        model.load_state_dict(torch.load(load_file))
+        model.load_state_dict(torch.load(load_file, map_location=device))
 
     if mse_mode:
         loss_fn = nn.MSELoss(reduction="sum")
@@ -129,13 +129,13 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, s
 
         torch.save(model.state_dict(), save_file)
 
-epochs = 100
-batch_size = 128
-train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=10, save_file="beta0.pt", load_file=None, latent_channels=16)
-train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=50, save_file="beta1.pt", load_file=None, latent_channels=16)
-train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=100, save_file="beta2.pt", load_file=None, latent_channels=16)
-train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=500, save_file="beta3.pt", load_file=None, latent_channels=16)
-train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=1000, save_file="beta4.pt", load_file=None, latent_channels=16)
+epochs = 2
+batch_size = 32
+train_nn(epochs, batch_size, lr=0.001, num_periods=0.5, beta_mult=200, save_file="PTFiles/beta6.pt", load_file="PTFiles/beta1.pt", latent_channels=16)
+# train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=50, save_file="beta1.pt", load_file=None, latent_channels=16)
+# train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=100, save_file="beta2.pt", load_file=None, latent_channels=16)
+# train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=500, save_file="beta3.pt", load_file=None, latent_channels=16)
+# train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=1000, save_file="beta4.pt", load_file=None, latent_channels=16)
 # train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=0.1, save_file="mushroom_vae2.pt")
 # train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=1, save_file="mushroom_vae3.pt")
 # train_nn(epochs, batch_size, lr=0.001, num_periods=10, beta_mult=10, save_file="mushroom_vae4.pt")

@@ -59,6 +59,24 @@ class Encoder(nn.Module):
 
         return mean + std * torch.randn_like(logvar), KL_div
 
+    def forward_to_mean_std(self, x):
+        x = self.initial(x)
+        x = self.layer1(x)
+        x = self.down1(x)
+        x = self.layer2(x)
+        x = self.down2(x)
+        x = self.layer3(x)
+        x = self.down3(x)
+        x = self.layer4(x)
+
+        mean = self.to_mean(x)
+        logvar = self.to_logvar(x)
+
+        logvar = torch.clamp(logvar, -10, 10)  # Prevent overflow in std calculation
+        std = torch.exp(0.5 * logvar)
+
+        return mean, std
+
 
 class Decoder(nn.Module):
     """
@@ -99,3 +117,9 @@ class VAE(nn.Module):
     def forward(self, x):
         x, KL_div = self.encoder(x)
         return self.decoder(x), KL_div
+
+    def forward_to_mean_std(self, x):
+        return self.encoder.forward_to_mean_std(x)
+
+    def forward_decode_only(self, x):
+        return self.decoder(x)

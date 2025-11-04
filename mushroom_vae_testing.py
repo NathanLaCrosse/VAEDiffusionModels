@@ -16,32 +16,45 @@ class Encoder(nn.Module):
         # 1: getting intput into 64x64x64 by doing a 3x64x64 -> 64x64x64 transformation
         self.in_to_conv1 = nn.Conv2d(3, 32, kernel_size=(1, 1), padding=1)  # 3x64x64 -> 32x64x64
         self.norm_conv1 = nn.BatchNorm2d(32)
-        self.bn_block1 = nc.BottleneckBlock(32, 8)  # 32x64x64 -> 32x64x64
-        # self.increase_conv1_channels = nn.Conv2d(32, 64, kernel_size=(1, 1)) # 32x64x64 -> 64x64x64
-        # self.norm_conv1_2 = nn.BatchNorm2d(64)
+
+        self.bn_block1_1 = nc.BottleneckBlock(32, 8)  # 32x64x64 -> 32x64x64
+        self.bn_block1_2 = nc.BottleneckBlock(32, 8)  # 32x64x64 -> 32x64x64
         self.conv1_to_conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1)  # 32x64x64 → 64x32x32
         self.norm_conv2 = nn.BatchNorm2d(64)
-        self.bn_block2 = nc.BottleneckBlock(64, 16) #64x32x32 -> 64x32x32
+
+        self.bn_block2_1 = nc.BottleneckBlock(64, 16) # 64x32x32 -> 64x32x32
+        self.bn_block2_2 = nc.BottleneckBlock(64, 16) # 64x32x32 -> 64x32x32
+        self.bn_block2_3 = nc.BottleneckBlock(64, 16)  # 64x32x32 -> 64x32x32
         self.conv2_to_conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1) # 64x32x32 → 128x16x16
         self.norm_conv3 = nn.BatchNorm2d(128)
-        self.bn_block3 = nc.BottleneckBlock(128, 32) #128x16x16 -> #128x16x16
-        self.conv3_to_conv4 = nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1) #128x16x16 → 256x8x8
-        self.norm_conv4 = nn.BatchNorm2d(256)
-        self.bn_block4 = nc.BottleneckBlock(256, 64) #256x8x8 → 256x8x8
 
-        self.conv4_to_mean = nn.Conv2d(256, 4, kernel_size=1)  # 256x8x8 -> 4x8x8
-        self.conv4_to_log_var = nn.Conv2d(256, 4, kernel_size=1)  # 256x8x8 -> 4x8x8
+        self.bn_block3_1 = nc.BottleneckBlock(128, 32) # 128x16x16 -> #128x16x16
+        self.bn_block3_2 = nc.BottleneckBlock(128, 32) # 128x16x16 -> #128x16x16
+        self.bn_block3_3 = nc.BottleneckBlock(128, 32)  # 128x16x16 -> #128x16x16
+        self.bn_block3_4 = nc.BottleneckBlock(128, 32)  # 128x16x16 -> #128x16x16
+
+        self.conv3_to_conv4 = nn.Conv2d(128, 256, kernel_size=1, stride=1, padding=0) # 128x16x16 → 256x16x16
+        self.norm_conv4 = nn.BatchNorm2d(256)
+
+        self.conv4_to_mean = nn.Conv2d(256, 4, kernel_size=1)  # 256x16x16 -> 4x16x16
+        self.conv4_to_log_var = nn.Conv2d(256, 4, kernel_size=1)  # 256x16x16 -> 4x16x16
 
     def forward(self, x):
         x = F.leaky_relu(self.norm_conv1(self.in_to_conv1(x)))
-        x = self.bn_block1(x)
+        x = self.bn_block1_1(x)
+        x = self.bn_block1_2(x)
         # x = F.leaky_relu(self.norm_conv1_2(self.increase_conv1_channels(x)))
         x = F.leaky_relu(self.norm_conv2(self.conv1_to_conv2(x)))
-        x = self.bn_block2(x)
+        x = self.bn_block2_1(x)
+        x = self.bn_block2_2(x)
+        x = self.bn_block2_3(x)
         x = F.leaky_relu(self.norm_conv3(self.conv2_to_conv3(x)))
-        x = self.bn_block3(x)
+        x = self.bn_block3_1(x)
+        x = self.bn_block3_2(x)
+        x = self.bn_block3_3(x)
+        x = self.bn_block3_4(x)
         x = F.leaky_relu(self.norm_conv4(self.conv3_to_conv4(x)))
-        x = self.bn_block4(x)
+
 
         mean = self.conv4_to_mean(x)
         log_var = self.conv4_to_log_var(x)
@@ -52,36 +65,41 @@ class Encoder(nn.Module):
 
     def forward_static(self, x):
         x = F.leaky_relu(self.norm_conv1(self.in_to_conv1(x)))
-        x = self.bn_block1(x)
+        x = self.bn_block1_1(x)
+        x = self.bn_block1_2(x)
         # x = F.leaky_relu(self.norm_conv1_2(self.increase_conv1_channels(x)))
         x = F.leaky_relu(self.norm_conv2(self.conv1_to_conv2(x)))
-        x = self.bn_block2(x)
+        x = self.bn_block2_1(x)
+        x = self.bn_block2_2(x)
+        x = self.bn_block2_3(x)
         x = F.leaky_relu(self.norm_conv3(self.conv2_to_conv3(x)))
-        x = self.bn_block3(x)
+        x = self.bn_block3_1(x)
+        x = self.bn_block3_2(x)
+        x = self.bn_block3_3(x)
+        x = self.bn_block3_4(x)
         x = F.leaky_relu(self.norm_conv4(self.conv3_to_conv4(x)))
-        x = self.bn_block4(x)
-
+        print(x.size())
         mean = self.conv4_to_mean(x)
         return mean
 
 class Decoder(nn.Module):
     def __init__(self):
         super().__init__()
-        self.latent_to_conv1 = nn.ConvTranspose2d(4, 16, kernel_size=3, stride=2, padding=1)  # 4x8x8 -> 16x16x16
+        self.latent_to_conv1 = nn.ConvTranspose2d(4, 16, kernel_size=3, stride=2, padding=1)  # 4x16x16 -> 16x32x32
         self.bn_block1 = nc.BottleneckBlock(16, 4)
-        self.conv1_to_conv2 = nn.ConvTranspose2d(16, 32, kernel_size=3, stride=2, padding=1)  # 16x16x16 -> 32x32x32
+        self.conv1_to_conv2 = nn.ConvTranspose2d(16, 32, kernel_size=2, stride=2, padding=1)  # 16x32x32 -> 32x64x64
         self.bn_block2 = nc.BottleneckBlock(32, 8)
-        self.conv2_to_conv3 = nn.ConvTranspose2d(32, 64, kernel_size=2, stride=2, padding=1)  # 32x32x32 -> 64x64x64
-        self.bn_block3 = nc.BottleneckBlock(64, 16)
-        self.conv3_to_out = nn.Conv2d(64, 3, kernel_size=1)  # 64x64x64 -> 3x64x64
+        # self.conv2_to_conv3 = nn.ConvTranspose2d(32, 64, kernel_size=1, stride=2, padding=1)  # 32x32x32 -> 64x64x64
+        # self.bn_block3 = nc.BottleneckBlock(64, 16)
+        self.conv3_to_out = nn.Conv2d(32, 3, kernel_size=1)  # 32x64x64 -> 3x64x64
 
     def forward(self, x):
         x = F.leaky_relu(self.latent_to_conv1(x))
         x = self.bn_block1(x)
         x = F.leaky_relu(self.conv1_to_conv2(x))
         x = self.bn_block2(x)
-        x = F.leaky_relu(self.conv2_to_conv3(x))
-        x = self.bn_block3(x)
+        # x = F.leaky_relu(self.conv2_to_conv3(x))
+        # x = self.bn_block3(x)
 
         return self.conv3_to_out(x)
 
@@ -96,7 +114,8 @@ class AutoEncoder(nn.Module):
         return self.decoder(x), KL_div
 
 
-def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5):
+def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_multiplier=1.0, filename = "mushroom_vae.pt"):
+
     #Load the picture data
     dataset = mushroomdata.MushroomData("DataJsons/traindirs.json")
     dataloader = DataLoader(dataset, batch_size, shuffle=True)
@@ -108,8 +127,6 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5):
 
     loss_fn = nn.BCEWithLogitsLoss(reduction="sum")
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-
-    beta_multiplier = 1.0
     period_length = epochs * len(dataloader) / num_periods
     batch_idx = 0
 
@@ -128,9 +145,13 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5):
 
             batch_idx += 1
             p_bar.set_postfix({'Loss': loss.item(), 'KL_div': KL_div.item(), 'beta': beta})
+        torch.save(model.state_dict(), filename)
 
-    torch.save(model.state_dict(), "mushroom_vae.pt")
 
-epochs = 5
-batch_size = 64
-train_nn(epochs, batch_size)
+train_nn(epochs=50, batch_size=64, num_periods=5, beta_multiplier=1.0, filename="mushroom_vae_base.pt")
+train_nn(epochs=50, batch_size=64, num_periods=5, beta_multiplier= 5.0, filename="mushroom_vae_5beta.pt")
+train_nn(epochs=50, batch_size=64, num_periods=5, beta_multiplier= 10.0, filename="mushroom_vae_10beta.pt")
+train_nn(epochs=50, batch_size=64, num_periods=5, beta_multiplier= 100.0, filename="mushroom_vae_100beta.pt")
+train_nn(epochs=50, batch_size=64, num_periods=10, beta_multiplier= 5.0, filename="mushroom_vae_5periods.pt")
+train_nn(epochs=50, batch_size=64, num_periods=10, beta_multiplier= 10.0, filename="mushroom_vae_5periods.pt")
+train_nn(epochs=50, batch_size=64, num_periods=10, beta_multiplier= 100.0, filename="mushroom_vae_5periods.pt")

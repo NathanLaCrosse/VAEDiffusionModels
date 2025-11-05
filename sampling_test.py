@@ -10,13 +10,13 @@ from NathanVAE import VAE
 import matplotlib.pyplot as plt
 import os
 
-latent_channels = 16
+latent_channels = 10
 model = VAE(latent_channels=latent_channels)
 mse_mode = True
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-name = "percep3"
+name = "smaller_percep"
 model.load_state_dict(torch.load(f"PTfiles/{name}.pt", map_location=device))
 model = model.to(device)
 
@@ -58,8 +58,8 @@ with torch.no_grad():
     model = model.to(cpu)
 
     # Randomly sample from mean and standard deviation
-    rows = 10
-    cols = 10
+    rows = 5
+    cols = 5
     fig, ax = plt.subplots(rows, cols)
     for i in range(rows):
         for j in range(cols):
@@ -67,6 +67,8 @@ with torch.no_grad():
             x = model.forward_decode_only(x).permute(1, 2, 0)
             if not mse_mode:
                 x = F.sigmoid(x)
+            else:
+                x = (x + 1) / 2
             ax[i, j].imshow(x)
 
     plt.show()

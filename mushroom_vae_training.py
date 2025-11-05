@@ -167,9 +167,9 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, p
 
 epochs = 100
 batch_size = 256
-train_nn(epochs, batch_size, lr=0.001, num_periods=5.5, beta_mult=0.0001, percep_mult=0.02, save_file="tinypercep1.pt", load_file="PTFiles/tinypercep1.pt", latent_channels=8, mse_mode=True)
-train_nn(epochs=20, batch_size=batch_size, lr=0.001, num_periods=0.75, beta_mult=0.0001, percep_mult=0.02, save_file="tinypercep2.pt", load_file="PTFiles/tinypercep1.pt", latent_channels=8, mse_mode=True)
-train_nn(epochs=20, batch_size=batch_size, lr=0.001, num_periods=0.5, beta_mult=0.0001, percep_mult=0.02, save_file="tinypercep3.pt", load_file="PTFiles/tinypercep1.pt", latent_channels=8, mse_mode=True)
+train_nn(epochs, batch_size, lr=0.001, num_periods=5, beta_mult=0.0002, percep_mult=0.02, save_file="tinypercep1.pt", load_file=None, latent_channels=8, mse_mode=True)
+train_nn(epochs=20, batch_size=batch_size, lr=0.001, num_periods=0.75, beta_mult=0.0002, percep_mult=0.02, save_file="tinypercep2.pt", load_file="PTFiles/tinypercep1.pt", latent_channels=8, mse_mode=True)
+train_nn(epochs=20, batch_size=batch_size, lr=0.001, num_periods=0.5, beta_mult=0.0002, percep_mult=0.02, save_file="tinypercep3.pt", load_file="PTFiles/tinypercep1.pt", latent_channels=8, mse_mode=True)
 # train_nn(epochs, batch_size, lr=0.001, num_periods=0.5, beta_mult=0.01, percep_mult=0.015, save_file="percep1.pt", load_file=None, latent_channels=16, mse_mode=True)
 # train_nn(epochs, batch_size, lr=0.001, num_periods=0.5, beta_mult=0.001, percep_mult=0.015, save_file="percep2.pt", load_file=None, latent_channels=16, mse_mode=True)
 # train_nn(epochs, batch_size, lr=0.001, num_periods=0.75, beta_mult=0.0001, percep_mult=0.015, save_file="smaller_percep.pt", load_file=None, latent_channels=10, mse_mode=True)

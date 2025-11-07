@@ -9,14 +9,12 @@ import mushroomdata
 from NathanVAE import VAE
 import matplotlib.pyplot as plt
 
-latent_options = [4,4,4,8,8,8]
+latent_options = [8,8,4,4]
 state_dicts = [
-    "PTFiles/norm1.pt",
-    "PTFiles/norm2.pt",
-    "PTFiles/norm3.pt",
     "PTFiles/largernorm1.pt",
-    "PTFiles/largernorm2.pt",
-    "PTFiles/largernorm3.pt"
+    "PTFiles/largernorm3.pt",
+    "PTFiles/norm1.pt",
+    "PTFiles/norm3.pt"
 ]
 
 models = [
@@ -38,15 +36,6 @@ with torch.no_grad():
 
         im = (im + 1) / 2
         im = im.permute(1,2,0)
-
-        # pred = model(im.view(1, 3, 64, 64))
-        # pred = pred[0][0]
-        # if mse_mode:
-        #     pred = (pred + 1) / 2
-        #     im = (im + 1) / 2
-        # else:
-        #     pred = F.sigmoid(pred)
-        # pred = pred.permute(1,2,0)
 
         fig, ax = plt.subplots(1, len(latent_options)+1)
 

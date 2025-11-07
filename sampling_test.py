@@ -10,15 +10,16 @@ from NathanVAE import VAE
 import matplotlib.pyplot as plt
 import os
 
-latent_channels = 8
+latent_channels = 4
 model = VAE(latent_channels=latent_channels)
 mse_mode = True
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-name = "tinypercep3"
+name = "inprogress49thebigone"
 model.load_state_dict(torch.load(f"PTfiles/{name}.pt", map_location=device))
 model = model.to(device)
+model = model.eval()
 
 train_dat = mushroomdata.MushroomData(json_file="DataJsons/traindirs.json", mse_mode=mse_mode)
 batch_size = 128

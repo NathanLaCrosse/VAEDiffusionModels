@@ -117,7 +117,7 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, p
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using {device}.")
 
-    model = VAE(latent_channels=latent_channels).to(device)
+    model = VAE(latent_channels=latent_channels, dropout=0.05).to(device)
 
     if load_file is not None:
         model.load_state_dict(torch.load(load_file, map_location=device))
@@ -162,14 +162,20 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, p
             })
 
         torch.save(model.state_dict(), f"PTFiles/{save_file}")
-        # if (epoch+1) % 30 == 0:
-        #     torch.save(model.state_dict(), f"PTFiles/inprogress{epoch}{save_file}")
+        if (epoch+1) % 25 == 0:
+            torch.save(model.state_dict(), f"PTFiles/inprogress{epoch}{save_file}")
 
-epochs = 100
-batch_size = 256
-train_nn(epochs, batch_size, lr=0.001, num_periods=5, beta_mult=0.0002, percep_mult=0.02, save_file="tinypercep1.pt", load_file=None, latent_channels=8, mse_mode=True)
-train_nn(epochs=20, batch_size=batch_size, lr=0.001, num_periods=0.75, beta_mult=0.0002, percep_mult=0.02, save_file="tinypercep2.pt", load_file="PTFiles/tinypercep1.pt", latent_channels=8, mse_mode=True)
-train_nn(epochs=20, batch_size=batch_size, lr=0.001, num_periods=0.5, beta_mult=0.0002, percep_mult=0.02, save_file="tinypercep3.pt", load_file="PTFiles/tinypercep1.pt", latent_channels=8, mse_mode=True)
+epochs = 75
+batch_size = 128
+train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.0001, percep_mult=0.05, save_file="largernorm1.pt", load_file=None, latent_channels=8, mse_mode=True)
+train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.0001, percep_mult=0.1, save_file="largernorm2.pt", load_file=None, latent_channels=8, mse_mode=True)
+train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.0001, percep_mult=0.15, save_file="largernorm3.pt", load_file=None, latent_channels=8, mse_mode=True)
+train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.00001, percep_mult=0.05, save_file="largernorm4.pt", load_file=None, latent_channels=8, mse_mode=True)
+train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.00001, percep_mult=0.1, save_file="largernorm5.pt", load_file=None, latent_channels=8, mse_mode=True)
+train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.00001, percep_mult=0.15, save_file="largernorm6.pt", load_file=None, latent_channels=8, mse_mode=True)
+# train_nn(epochs, batch_size, lr=0.001, num_periods=5, beta_mult=0.0002, percep_mult=0.02, save_file="tinypercep1.pt", load_file=None, latent_channels=8, mse_mode=True)
+# train_nn(epochs=20, batch_size=batch_size, lr=0.001, num_periods=0.75, beta_mult=0.0002, percep_mult=0.02, save_file="tinypercep2.pt", load_file="PTFiles/tinypercep1.pt", latent_channels=8, mse_mode=True)
+# train_nn(epochs=20, batch_size=batch_size, lr=0.001, num_periods=0.5, beta_mult=0.0002, percep_mult=0.02, save_file="tinypercep3.pt", load_file="PTFiles/tinypercep1.pt", latent_channels=8, mse_mode=True)
 # train_nn(epochs, batch_size, lr=0.001, num_periods=0.5, beta_mult=0.01, percep_mult=0.015, save_file="percep1.pt", load_file=None, latent_channels=16, mse_mode=True)
 # train_nn(epochs, batch_size, lr=0.001, num_periods=0.5, beta_mult=0.001, percep_mult=0.015, save_file="percep2.pt", load_file=None, latent_channels=16, mse_mode=True)
 # train_nn(epochs, batch_size, lr=0.001, num_periods=0.75, beta_mult=0.0001, percep_mult=0.015, save_file="smaller_percep.pt", load_file=None, latent_channels=10, mse_mode=True)

@@ -44,3 +44,23 @@ class BottleneckBlock(nn.Module):
 
         x = F.relu(x + bottleneck)
         return x
+
+# class ResidualBlockWithEmbeddings(nn.Module):
+#     def __init__(self, initial_channels, bottleneck_channels, im_dim, num_labels, dropout_p=0.0):
+#         super(ResidualBlockWithEmbeddings, self).__init__()
+#
+#         self.dropout_p = dropout_p
+#
+#         self.label_embedding = nn.Embedding(num_labels, im_dim)
+#         self.embedding_mlp = nn.Sequential(
+#             nn.Linear(im_dim, im_dim*4)
+#         )
+#
+#         self.conv1 = nn.Conv2d(initial_channels, bottleneck_channels, 1)
+#         self.conv2 = nn.Conv2d(bottleneck_channels, bottleneck_channels, 3, 1, 1)
+#         self.conv3 = nn.Conv2d(initial_channels, bottleneck_channels, 1)
+
+class MultiLayerPerceptron(nn.Module):
+    def __init__(self):
+        super(MultiLayerPerceptron, self).__init__()
+

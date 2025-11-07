@@ -19,6 +19,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 name = "tinypercep1"
 model.load_state_dict(torch.load(f"PTfiles/{name}.pt", map_location=device))
 model = model.to(device)
+model = model.eval()
 
 train_dat = mushroomdata.MushroomData(json_file="DataJsons/traindirs.json", mse_mode=mse_mode)
 batch_size = 128

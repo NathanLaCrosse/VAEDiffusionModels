@@ -104,7 +104,7 @@ class Decoder(nn.Module):
         x = self.layer3(x)
         x = self.up3(x)
         x = self.layer4(x)
-        return self.out(x)
+        return F.tanh(self.out(x)) # force output to be between -1 & 1
 
 
 class VAE(nn.Module):

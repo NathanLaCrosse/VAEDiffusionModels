@@ -34,15 +34,18 @@ class BottleneckBlock(nn.Module):
         self.conv2 = nn.Conv2d(bottleneck_channels, bottleneck_channels, 3, 1, 1)
         self.conv3 = nn.Conv2d(bottleneck_channels, initial_channels, 1)
 
+        self.norm1 = nn.GroupNorm(bottleneck_channels//4, bottleneck_channels)
+        self.norm2 = nn.GroupNorm(initial_channels//4, initial_channels)
+
     def forward(self, x):
-        bottleneck = self.conv1(x)
-        bottleneck = F.relu(self.conv2(bottleneck))
-        bottleneck = F.relu(self.conv3(bottleneck))
+        bottleneck = self.norm1(self.conv1(x))
+        bottleneck = F.silu(self.conv2(bottleneck))
+        bottleneck = self.norm2(F.silu(self.conv3(bottleneck)))
 
         if self.dropout_p > 0:
             bottleneck = F.dropout(bottleneck, p=self.dropout_p)
 
-        x = F.relu(x + bottleneck)
+        x = F.silu(x + bottleneck)
         return x
 
 # class ResidualBlockWithEmbeddings(nn.Module):

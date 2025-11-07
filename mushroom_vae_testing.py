@@ -9,30 +9,52 @@ import mushroomdata
 from NathanVAE import VAE
 import matplotlib.pyplot as plt
 
-model = VAE(latent_channels=8)
+latent_options = [4,4,4,8,8,8]
+state_dicts = [
+    "PTFiles/norm1.pt",
+    "PTFiles/norm2.pt",
+    "PTFiles/norm3.pt",
+    "PTFiles/largernorm1.pt",
+    "PTFiles/largernorm2.pt",
+    "PTFiles/largernorm3.pt"
+]
 
-model.load_state_dict(torch.load("PTFiles/tinypercep1.pt", map_location=torch.device('cpu')))
+models = [
+    VAE(latent_channels=latent_options[i]) for i in range(len(latent_options))
+]
+for i in range(len(latent_options)):
+    models[i].load_state_dict(torch.load(state_dicts[i], map_location=torch.device('cpu')))
+    models[i] = models[i].eval()
 
-mse_mode = True
-dat = mushroomdata.MushroomData("DataJsons/testdirs.json", mse_mode=mse_mode)
+dat = mushroomdata.MushroomData("DataJsons/testdirs.json", mse_mode=True)
 
 with torch.no_grad():
     for im, label in dat:
-        pred = model(im.view(1, 3, 64, 64))
-        pred = pred[0][0]
-        if mse_mode:
-            pred = (pred + 1) / 2
-            im = (im + 1) / 2
-        else:
-            pred = F.sigmoid(pred)
+        preds = [None for i in range(len(latent_options))]
 
+        for i in range(len(latent_options)):
+            preds[i] = (models[i](im.view(1,3,64,64))[0][0] + 1) / 2
+            preds[i] = preds[i].permute(1, 2, 0)
+
+        im = (im + 1) / 2
         im = im.permute(1,2,0)
-        pred = pred.permute(1,2,0)
 
-        fig, ax = plt.subplots(1, 2)
+        # pred = model(im.view(1, 3, 64, 64))
+        # pred = pred[0][0]
+        # if mse_mode:
+        #     pred = (pred + 1) / 2
+        #     im = (im + 1) / 2
+        # else:
+        #     pred = F.sigmoid(pred)
+        # pred = pred.permute(1,2,0)
+
+        fig, ax = plt.subplots(1, len(latent_options)+1)
 
         ax[0].imshow(im)
         ax[0].set_title("Original")
-        ax[1].imshow(pred)
-        ax[1].set_title("Model Output")
+
+        for i in range(len(latent_options)):
+            ax[1+i].imshow(preds[i])
+            ax[1+i].set_title(f"Option {1+i}")
+
         plt.show()

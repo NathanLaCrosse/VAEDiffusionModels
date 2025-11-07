@@ -168,10 +168,8 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, p
 epochs = 75
 batch_size = 128
 train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.0001, percep_mult=0.05, save_file="largernorm1.pt", load_file=None, latent_channels=8, mse_mode=True)
-train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.0001, percep_mult=0.1, save_file="largernorm2.pt", load_file=None, latent_channels=8, mse_mode=True)
 train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.0001, percep_mult=0.15, save_file="largernorm3.pt", load_file=None, latent_channels=8, mse_mode=True)
 train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.00001, percep_mult=0.05, save_file="largernorm4.pt", load_file=None, latent_channels=8, mse_mode=True)
-train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.00001, percep_mult=0.1, save_file="largernorm5.pt", load_file=None, latent_channels=8, mse_mode=True)
 train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.00001, percep_mult=0.15, save_file="largernorm6.pt", load_file=None, latent_channels=8, mse_mode=True)
 
 # Percep loss starts around 0.4 - check on later

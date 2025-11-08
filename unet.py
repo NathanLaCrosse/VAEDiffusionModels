@@ -3,7 +3,6 @@ from random import random
 
 import numpy as np
 import torch
-from openpyxl.styles.builtins import output
 from sympy import convolution
 from torch import nn
 import torch.nn.functional as F
@@ -12,6 +11,7 @@ from tqdm import tqdm
 
 import NetworkComponents as nc
 import mushroomdata
+from NathanVAE import VAE
 
 
 class UNET(nn.Module):
@@ -88,61 +88,75 @@ class UNET(nn.Module):
 
         return self.to_out(up)
 
-if __name__ == '__main__':
-    test_x = torch.randn(2,8,8,8)
-    test_t = torch.randn(2,10)
-    test_l = torch.randint(7, (2,))
 
-    unet = UNET(10, 13, 7)
 
-        # Residual connection
-        return F.silu(x + res)
-
-def train_unet(epochs=15, batch_size = 32, learning_rate = 0.1, num_time_steps = 1000, file_base = "unet.pt", vae_file = ""):
+def train_unet(epochs=15, batch_size = 32, learning_rate = 0.1, num_time_steps = 1000, file_base = "unet.pt",
+               vae_file = "PTFiles/largernorm3.pt", vae_latent_channels=8):
     dataset = mushroomdata.MushroomData("DataJsons/traindirs.json")
-    dataloader = DataLoader(dataset, batch_size, shuffle=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using {device}.")
 
-    vae_model = VAE()
-    if not vae_file == "":
-        vae_model = vae_model.load_state_dict(torch.load(vae_file))
+    vae_model = VAE(latent_channels=vae_latent_channels)
+    vae_model.load_state_dict(torch.load(vae_file, map_location=device))
 
     start_step = 0.001
     end_step = 0.02
-    beta_steps = np.array([start_step + (end_step - start_step)*i/(num_time_steps-1) for i in range(num_time_steps)])
-    alpha_steps = 1 - beta_steps
+    # beta_steps = np.array([start_step + (end_step - start_step)*i/(num_time_steps-1) for i in range(num_time_steps)])
 
-    unet_model = UNET()
+    betas = np.linspace(start_step, end_step, num_time_steps)
+    alphas = 1 - betas
+
+    alpha_bars = np.zeros(num_time_steps)
+    alpha_bars[0] = alphas[0]
+    for i in range(1, num_time_steps):
+        alpha_bars[i] = alphas[i] * alpha_bars[i-1]
+
+    unet_model = UNET(64, 128, 100)
+
+    time_encodings = nc.positional_encoding(num_time_steps, 64) # (num_time_steps, 64) array of time encodings
 
     loss_fn = nn.MSELoss(reduction="mean")
     optimizer = torch.optim.Adam(unet_model.parameters(), lr=learning_rate)
 
     for epoch in range(epochs):
+        dataloader = DataLoader(dataset, batch_size, shuffle=True)
         p_bar = tqdm(dataloader, desc=f"Epoch [{epoch + 1} / {epochs}]")
-        for images in p_bar:
-            images = images.to(device)
-            r_t_indx = int(random() * num_time_steps)
 
-            #TODO Change to be actual latents
-            input_latent = np.array([8,8,8])
-            rand_epsilon = randn()
-            alpha_bar = np.prod(alpha_steps[:r_t_indx])
+        for _, batch in enumerate(p_bar):
+            local_bs = len(batch[0])
+            ims, labels = batch
+            ims = ims.to(device)
+            labels = labels.to(device)
 
-            noisy_latents = math.sqrt(alpha_bar) * input_latent + math.sqrt(1 - alpha_bar) * rand_epsilon
+            time_step = np.random.randint(num_time_steps) + 1
+
+            # Generate latents
+            latents = vae_model.forward_encode_only(ims)
+
+            # Generate noise and create noisy latents
+            noise = torch.randn((local_bs, 8, 8, 8), device=device)
+            noisy_latents = (math.sqrt(alpha_bars[time_step-1]) * latents +
+                             math.sqrt(1 - alpha_bars[time_step-1]) * noise)
+
+            # Grab time encodings
+            step_vect = time_encodings[time_step, :] # Shape: (64,)
+            step_vect = step_vect.unsqueeze(0).expand(local_bs, 64) # Shape: (local_bs, 64)
 
             optimizer.zero_grad()
 
-            output_latent = unet_model(noisy_latents)
+            output_latent = unet_model(noisy_latents, step_vect, labels)
 
-            loss = loss_fn(input_latent, output_latent)
+            loss = loss_fn(noise, output_latent)
             loss.backward()
             optimizer.step()
+
+            p_bar.set_postfix({
+                'Loss' : loss.item()
+            })
 
         torch.save(unet_model.state_dict(), f"PTFiles/{file_base}")
         if (epoch + 1) % 25 == 0:
             torch.save(unet_model.state_dict(), f"PTFiles/inprogress{epoch}{file_base}")
 
-
-train_unet()
+train_unet(batch_size=2)

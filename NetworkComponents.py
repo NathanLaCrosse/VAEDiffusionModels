@@ -131,6 +131,21 @@ class ResidualBlockWithEmbeddings(nn.Module):
         return F.silu(x + res)
 
 
+def positional_encoding(seq_len, dim):
+    """
+    Generates a positional encoding matrix of shape (seq_len, dim) using
+    sinusoidal functions as described in the original Transformer paper.
+    """
+    pos = torch.arange(seq_len).unsqueeze(1)  # shape: (seq_len, 1)
+    i = torch.arange(dim).unsqueeze(0)  # shape: (1, dim)
+    omega = 1 / torch.pow(10000, (2 * (i // 2)) / dim)  # frequency term
+    angles = pos * omega  # outer product: position * frequency
+
+    pos_enc = torch.zeros(seq_len, dim)
+    pos_enc[:, 0::2] = torch.sin(angles[:, 0::2])  # apply sin to even indices
+    pos_enc[:, 1::2] = torch.cos(angles[:, 1::2])  # apply cos to odd indices
+    return pos_enc
+
 if __name__ == '__main__':
     resblock = ResidualBlockWithEmbeddings(16, 7, 2, 64, 256)
 

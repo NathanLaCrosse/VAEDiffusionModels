@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from openpyxl.styles.builtins import output
 from sympy import convolution
-from torch import nn
+from torch import nn, randn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -178,8 +178,6 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.1, num_time_steps =
     beta_steps = np.array([start_step + (end_step - start_step)*i/(num_time_steps-1) for i in range(num_time_steps)])
     alpha_steps = 1 - beta_steps
 
-    alpha_bar = np.prod(alpha_steps)
-
     unet_model = UNET()
 
     loss_fn = nn.MSELoss(reduction="mean")
@@ -189,11 +187,14 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.1, num_time_steps =
         p_bar = tqdm(dataloader, desc=f"Epoch [{epoch + 1} / {epochs}]")
         for images in p_bar:
             images = images.to(device)
-            r_indx = int(random() * num_time_steps)
+            r_t_indx = int(random() * num_time_steps)
 
             #TODO Change to be actual latents
             input_latent = np.array([8,8,8])
-            noisy_latents = math.sqrt(alpha_steps[r_indx]) * input_latent + math.sqrt(1 - alpha_bar) *randn()
+            rand_epsilon = randn()
+            alpha_bar = np.prod(alpha_steps[:r_t_indx])
+
+            noisy_latents = math.sqrt(alpha_bar) * input_latent + math.sqrt(1 - alpha_bar) * rand_epsilon
 
             optimizer.zero_grad()
 

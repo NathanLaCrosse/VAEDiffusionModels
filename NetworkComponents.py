@@ -1,3 +1,4 @@
+import math
 import torch
 from pandas.core.nanops import bottleneck_switch
 from torch import nn
@@ -74,8 +75,9 @@ class ResidualBlockWithEmbeddings(nn.Module):
         self.time_mlp = nn.Sequential(
             nn.Linear(time_embed_dim, time_embed_dim*4),
             nn.SiLU(),
+            # nn.Dropout(dropout_p),
             nn.Linear(time_embed_dim*4, bottleneck_channels),
-            nn.SiLU()
+            # nn.SiLU()
         )
 
         # Similar to the time mlp, this draws out locally important information of out the
@@ -83,8 +85,9 @@ class ResidualBlockWithEmbeddings(nn.Module):
         self.label_mlp = nn.Sequential(
             nn.Linear(label_embed_dim, label_embed_dim),
             nn.SiLU(),
-            nn.Linear(label_embed_dim, im_dim**2),
-            nn.SiLU()
+            # nn.Dropout(dropout_p),
+            nn.Linear(label_embed_dim,bottleneck_channels),
+            # nn.SiLU()
         )
 
         self.conv1 = nn.Conv2d(initial_channels, bottleneck_channels, 1)
@@ -92,8 +95,8 @@ class ResidualBlockWithEmbeddings(nn.Module):
         self.conv3 = nn.Conv2d(bottleneck_channels, initial_channels, 1)
 
         # Extra normalization stuff
-        self.norm1 = nn.GroupNorm(bottleneck_channels // 4, bottleneck_channels)
-        self.norm2 = nn.GroupNorm(initial_channels // 4, initial_channels)
+        self.norm1 = nn.GroupNorm(8, bottleneck_channels)
+        self.norm2 = nn.GroupNorm(8, initial_channels)
 
     def forward(self, x, t_vect, l_vect):
         """
@@ -106,8 +109,8 @@ class ResidualBlockWithEmbeddings(nn.Module):
         batch_size, c, rows, cols = x.size()
 
         # Create local context encodings of t and l
-        local_t = self.time_mlp(t_vect)
-        local_l = self.label_mlp(l_vect)
+        local_t = F.normalize(self.time_mlp(t_vect), dim=-1)
+        local_l = F.normalize(self.label_mlp(l_vect), dim=-1)
 
         # First convolution
         res = F.silu(self.norm1(self.conv1(x)))
@@ -117,8 +120,9 @@ class ResidualBlockWithEmbeddings(nn.Module):
         res = res + local_t[:, :, None, None]
 
         # local_l has length dim**2 -> convert into a different view added to resp
-        local_l = local_l.view(batch_size, self.im_dim, self.im_dim)
-        res = res + local_l[:, None, :, :]
+        # local_l = local_l.view(batch_size, self.im_dim, self.im_dim)
+        # res = res + local_l[:, None, :, :]
+        res = res + local_l[:, :, None, None]
 
         # Perform the rest of the convolutions
         res = F.silu(self.conv2(res))
@@ -128,8 +132,21 @@ class ResidualBlockWithEmbeddings(nn.Module):
             res = F.dropout(res, p=self.dropout_p)
 
         # Residual connection
-        return F.silu(x + res)
+        return x + res / math.sqrt(2)
 
+class NResBlocks(nn.Module):
+
+    def __init__(self, n, initial_channels, bottleneck_channels, im_dim, time_embed_dim=64, label_embed_dim=256, dropout_p=0.0):
+        super(NResBlocks, self).__init__()
+
+        self.blocks = nn.ModuleList(
+            [ResidualBlockWithEmbeddings(initial_channels, bottleneck_channels, im_dim, time_embed_dim, label_embed_dim, dropout_p) for i in range(n)]
+        )
+
+    def forward(self, x, t_vect, l_vect):
+        for i in range(len(self.blocks)):
+            x = self.blocks[i](x, t_vect, l_vect)
+        return x
 
 def positional_encoding(seq_len, dim):
     """

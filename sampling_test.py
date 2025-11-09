@@ -10,12 +10,12 @@ from NathanVAE import VAE
 import matplotlib.pyplot as plt
 import os
 
-latent_channels = 4
+latent_channels = 8
 model = VAE(latent_channels=latent_channels)
 mse_mode = True
 
 
-name = "norm1"
+name = "largernorm3"
 model.load_state_dict(torch.load(f"PTfiles/{name}.pt", map_location=torch.device('cpu')))
 
 train_dat = mushroomdata.MushroomData(json_file="DataJsons/traindirs.json", mse_mode=mse_mode)
@@ -37,7 +37,6 @@ with torch.no_grad():
     fig, ax = plt.subplots(rows, cols)
     for i in range(rows):
         for j in range(cols):
-            # x = global_mean + global_std * torch.randn_like(global_std)
             x = torch.randn_like(global_std.view(1,latent_channels,8,8))
             x = model.forward_decode_only(x)[0, :, :, :].permute(1, 2, 0)
             if not mse_mode:

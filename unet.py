@@ -126,12 +126,12 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
 
     # Learning rate scheduler
     warmup_steps = 5000
-    total_steps = epochs * (len(dataset) / batch_size)
+    linear_decay_steps = epochs * (len(dataset) / batch_size) - 5000
 
     def lr_lambda(current_step):
         if current_step < warmup_steps:
             return float(current_step) / float(max(1, warmup_steps))
-        return 1.0 * np.cos(np.pi * current_step / (2*(total_steps-warmup_steps)))
+        return 1.0 - current_step / linear_decay_steps
     scheduler = LambdaLR(optimizer, lr_lambda)
 
     for epoch in range(epochs):

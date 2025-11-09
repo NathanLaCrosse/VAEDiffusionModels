@@ -59,8 +59,8 @@ def denoise_latent(latent, unet, alphas, betas, alpha_bars, time_encodings, tota
 # Actual testing stuff here
 with torch.no_grad():
     while True:
-        rows = 7
-        cols = 7
+        rows = 2
+        cols = 2
 
         samp = torch.randn((rows*cols, 8, 8, 8), device=device)
         labels = torch.randint(0,100,(rows*cols,), device=device)

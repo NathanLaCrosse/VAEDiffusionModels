@@ -197,6 +197,6 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
             torch.save(unet_model.state_dict(), f"PTFiles/inprogress{epoch}{file_base}")
 
 if __name__ == '__main__': 
-    train_unet(epochs=50, batch_size=256, file_base="nobackflow.pt", num_time_steps=1000, learning_rate=5e-5, dropout=0.0)
+    train_unet(epochs=500, batch_size=256, file_base="nobackflowref2.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.0, load_file="PTFiles/nobackflowref.pt")
     # train_unet(epochs=50, batch_size=256, file_base="refined.pt", num_time_steps=1000, learning_rate=5e-7, dropout=0.0, load_file="PTFiles/thousand.pt")
     # train_unet(epochs=200, batch_size=256, file_base="thousand.pt", num_time_steps=100, learning_rate=1e-4)

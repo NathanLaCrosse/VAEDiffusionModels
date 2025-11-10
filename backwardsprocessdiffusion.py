@@ -17,7 +17,7 @@ vae = VAE(8)
 unet = UNET(64, 128, 100)
 
 vae.load_state_dict(torch.load("PTFiles/largernorm3.pt", map_location=device))
-unet.load_state_dict(torch.load("PTFiles/nobackflow.pt", map_location=device))
+unet.load_state_dict(torch.load("PTFiles/nobackflowref.pt", map_location=device))
 vae = vae.to(device).eval()
 unet = unet.to(device).eval()
 
@@ -61,8 +61,8 @@ latent_stds = stats['stds'].to(device).view(1, -1, 1, 1)
 # Actual testing stuff here
 with torch.no_grad():
     while True:
-        rows = 5
-        cols = 5
+        rows = 7
+        cols = 7
 
         samp = torch.randn((rows*cols, 8, 8, 8), device=device)
         labels = torch.randint(0,100,(rows*cols,), device=device)

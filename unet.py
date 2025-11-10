@@ -94,7 +94,7 @@ class UNET(nn.Module):
 
 
 def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps = 1000, file_base = "unet.pt",
-               vae_file = "PTFiles/largernorm3.pt", vae_latent_channels=8, dropout=0.0):
+               vae_file = "PTFiles/largernorm3.pt", vae_latent_channels=8, dropout=0.0, load_file=None):
     dataset = mushroomdata.MushroomData("DataJsons/traindirs.json")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -103,6 +103,11 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
     vae_model = VAE(latent_channels=vae_latent_channels)
     vae_model.load_state_dict(torch.load(vae_file, map_location=device))
     vae_model = vae_model.to(device=device)
+    vae_model.eval()
+
+    # Parameter freeze - incredibly important!!!
+    for p in vae_model.parameters():
+        p.requires_grad = False
 
     start_step = 0.0001
     end_step = 0.02
@@ -117,6 +122,8 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
         alpha_bars[i] = alphas[i] * alpha_bars[i-1]
 
     unet_model = UNET(64, 128, 100, dropout_p=dropout)
+    if load_file is not None:
+        unet_model.load_state_dict(torch.load(load_file, map_location=device))
     unet_model = unet_model.to(device=device)
 
     time_encodings = nc.positional_encoding(num_time_steps, 64).to(device=device) # (num_time_steps, 64) array of time encodings
@@ -125,14 +132,18 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
     optimizer = torch.optim.Adam(unet_model.parameters(), lr=learning_rate)
 
     # Learning rate scheduler
-    warmup_steps = 5000
-    linear_decay_steps = epochs * (len(dataset) / batch_size) - 5000
+    # warmup_steps = 3000
+    # linear_decay_steps = epochs * (len(dataset) / batch_size) - warmup_steps
 
-    def lr_lambda(current_step):
-        if current_step < warmup_steps:
-            return float(current_step) / float(max(1, warmup_steps))
-        return 1.0 - current_step / linear_decay_steps
-    scheduler = LambdaLR(optimizer, lr_lambda)
+    # def lr_lambda(current_step):
+    #     if current_step < warmup_steps:
+    #         return float(current_step) / float(max(1, warmup_steps))
+    #     return 1.0 - max(0, (current_step-warmup_steps) / linear_decay_steps)
+    # scheduler = LambdaLR(optimizer, lr_lambda)
+
+    stats = torch.load("latent_channel_info.pt")
+    latent_means = stats['means'].to(device).view(1, -1, 1, 1)
+    latent_stds = stats['stds'].to(device).view(1, -1, 1, 1)
 
     for epoch in range(epochs):
         dataloader = DataLoader(dataset, batch_size, shuffle=True)
@@ -151,7 +162,10 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
             time_steps = torch.randint(0,num_time_steps,(local_bs,),device=device)
 
             # Generate latents
-            latents = vae_model.forward_encode_only(ims)
+            latents = vae_model.forward_encode_only(ims).detach()
+
+            # Normalize latent 
+            latents = (latents - latent_means) / latent_stds
 
             # Generate noise and create noisy latents
             noise = torch.randn((local_bs, 8, 8, 8), device=device)
@@ -170,9 +184,9 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
 
             loss = loss_fn(noise, output_latent)
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(unet_model.parameters(), 1.0)
+            torch.nn.utils.clip_grad_norm_(unet_model.parameters(), 5.0)
             optimizer.step()
-            scheduler.step()
+            # scheduler.step()
 
             p_bar.set_postfix({
                 'Loss' : loss.item()
@@ -182,6 +196,7 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
         if (epoch + 1) % 50 == 0:
             torch.save(unet_model.state_dict(), f"PTFiles/inprogress{epoch}{file_base}")
 
-if __name__ == '__main__':
-    train_unet(epochs=100, batch_size=256, file_base="twohundred.pt", num_time_steps=250, learning_rate=1e-4, dropout=0.0)
+if __name__ == '__main__': 
+    train_unet(epochs=50, batch_size=256, file_base="nobackflow.pt", num_time_steps=1000, learning_rate=5e-5, dropout=0.0)
+    # train_unet(epochs=50, batch_size=256, file_base="refined.pt", num_time_steps=1000, learning_rate=5e-7, dropout=0.0, load_file="PTFiles/thousand.pt")
     # train_unet(epochs=200, batch_size=256, file_base="thousand.pt", num_time_steps=100, learning_rate=1e-4)

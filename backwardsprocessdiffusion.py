@@ -17,13 +17,13 @@ vae = VAE(8)
 unet = UNET(64, 128, 100)
 
 vae.load_state_dict(torch.load("PTFiles/largernorm3.pt", map_location=device))
-unet.load_state_dict(torch.load("PTFiles/inprogress49twohundred.pt", map_location=device))
-vae = vae.to(device)
-unet = unet.to(device)
+unet.load_state_dict(torch.load("PTFiles/nobackflow.pt", map_location=device))
+vae = vae.to(device).eval()
+unet = unet.to(device).eval()
 
 start_step = 0.0001
 end_step = 0.02
-num_time_steps = 250
+num_time_steps = 1000
 
 betas = np.linspace(start_step, end_step, num_time_steps)
 alphas = 1 - betas
@@ -54,21 +54,29 @@ def denoise_latent(latent, unet, alphas, betas, alpha_bars, time_encodings, tota
         return pred
 
 
-
+stats = torch.load("latent_channel_info.pt")
+latent_means = stats['means'].to(device).view(1, -1, 1, 1)
+latent_stds = stats['stds'].to(device).view(1, -1, 1, 1)
 
 # Actual testing stuff here
 with torch.no_grad():
     while True:
-        rows = 2
-        cols = 2
+        rows = 5
+        cols = 5
 
         samp = torch.randn((rows*cols, 8, 8, 8), device=device)
         labels = torch.randint(0,100,(rows*cols,), device=device)
 
         denoised = denoise_latent(samp, unet, alphas, betas, alpha_bars, time_encodings, num_time_steps, labels)
-        # denoised = F.normalize(denoised, dim=-1)
-        # print(denoised.mean().item(), denoised.std().item())
+        denoised = denoised * latent_stds + latent_means
+
         ims = vae.forward_decode_only(denoised)
+
+        # print("Latent stats:", )
+        # print("Denoised stats:", denoised[0].mean().item(), denoised.std().item())
+        
+        # print("Decoded range:", ims[0].min().item(), ims[0].max().item())
+        # print("Samples:", ims[0].view(-1)[:10].tolist())
 
         fig, ax = plt.subplots(rows, cols)
 
@@ -77,6 +85,8 @@ with torch.no_grad():
                 im = ims[i*rows + k].to(cpu)
                 im = (im + 1) / 2
                 im = im.permute(1,2,0)
+
+                print("Decoded stats:", im[0].mean().item(), im[0].std().item())
 
                 ax[i, k].imshow(im)
                 ax[i, k].axis('off')

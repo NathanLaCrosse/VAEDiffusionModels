@@ -76,7 +76,7 @@ def denoise_step_by_step(latent, unet, alphas, betas, alpha_bars, time_encodings
         for j in range(cols):
             picture = original_noise[i * cols + j].to(cpu)
             picture = (picture + 1) / 2
-            picture = picture.permute(1, 2, 0)#.clamp(0, 1).numpy()
+            picture = picture.permute(1, 2, 0)
             ref = ax[i, j].imshow(picture)
             ax[i, j].axis("off")
             image_references.append(ref)
@@ -102,7 +102,7 @@ def denoise_step_by_step(latent, unet, alphas, betas, alpha_bars, time_encodings
                 for j in range(cols):
                     picture = decoded_pictures[i * cols + j].to(cpu)
                     picture = (picture + 1) / 2
-                    picture = picture.permute(1, 2, 0) #.clamp(0, 1).numpy()
+                    picture = picture.permute(1, 2, 0)
                     image_references[i * cols + j].set_data(picture)
 
             #update the canvas without remaking the window, with a pause

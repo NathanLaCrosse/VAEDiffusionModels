@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from dask.array import block
 from torch import nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
@@ -9,9 +10,15 @@ import mushroomdata
 from unet import UNET
 from NathanVAE import VAE
 import matplotlib.pyplot as plt
+import json
+import os
+import random
+from PIL import Image
 
 cpu = torch.device('cpu')
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+with open('DataJsons/idx2class.json', 'r') as file:
+    idx2class = json.load(file)
 
 vae = VAE(8)
 unet = UNET(64, 128, 100)
@@ -23,7 +30,7 @@ unet = unet.to(device)
 
 start_step = 0.0001
 end_step = 0.02
-num_time_steps = 250
+num_time_steps = 40
 
 betas = np.linspace(start_step, end_step, num_time_steps)
 alphas = 1 - betas
@@ -58,6 +65,26 @@ def denoise_latent(latent, unet, alphas, betas, alpha_bars, time_encodings, tota
         
         return pred
 
+def plot_real_mushrooms(labels, mushroom_img_folder = 'MushroomData'):
+    real_fig, real_ax = plt.subplots(rows, cols)
+    real_fig.suptitle("Real Picture Examples", fontsize=16)
+
+    for i in range(rows):
+        for j in range(cols):
+            label_idx = labels[i * cols + j].item()
+            species_name = idx2class[str(label_idx)]
+            species_folder = os.path.join(mushroom_img_folder, species_name)
+            image_files = [picture for picture in os.listdir(species_folder) if picture.endswith(".png")]
+            random_image = random.choice(image_files)
+            img_path = os.path.join(species_folder, random_image)
+            img = Image.open(img_path).convert("RGB")
+
+            real_ax[i, j].imshow(img)
+            real_ax[i, j].set_title(species_name, fontsize=9)
+            real_ax[i, j].axis("off")
+
+    plt.tight_layout()
+    plt.show(block=False)
 
 def denoise_step_by_step(latent, unet, alphas, betas, alpha_bars, time_encodings, total_noise_steps, label):
     bs, _, _, _ = latent.size()
@@ -78,11 +105,15 @@ def denoise_step_by_step(latent, unet, alphas, betas, alpha_bars, time_encodings
             picture = (picture + 1) / 2
             picture = picture.permute(1, 2, 0)
             ref = ax[i, j].imshow(picture)
+            label_idx = label[i * cols + j].item()
+            species_name = idx2class[str(label_idx)]
+            ax[i, j].set_title(species_name, fontsize=9)
             ax[i, j].axis("off")
             image_references.append(ref)
 
     plt.tight_layout()
     plt.pause(0.001)
+    plot_real_mushrooms(label)
 
     with torch.no_grad():
         while t > 0:
@@ -111,6 +142,8 @@ def denoise_step_by_step(latent, unet, alphas, betas, alpha_bars, time_encodings
 
             #go down one time step
             t  = t-1
+    plt.ioff()
+    plt.show()
     return pred
 
 def plot_final_result():

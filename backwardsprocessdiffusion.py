@@ -17,7 +17,7 @@ vae = VAE(8)
 unet = UNET(64, 128, 100)
 
 vae.load_state_dict(torch.load("PTFiles/largernorm3.pt", map_location=device))
-unet.load_state_dict(torch.load("PTFiles/nonnorm2.pt", map_location=device))
+unet.load_state_dict(torch.load("PTFiles/overnight.pt", map_location=device))
 vae = vae.to(device).eval()
 unet = unet.to(device).eval()
 
@@ -52,7 +52,7 @@ def denoise_latent(latent, unet, alphas, betas, alpha_bars, time_encodings, tota
             if t > 1:
                 pred = pred + np.sqrt(betas[t-1]) * torch.randn_like(pred)           
 
-            print(noise.std().item(), pred.std().item()) 
+            # print(noise.std().item(), pred.std().item()) 
 
             t -= 1
         

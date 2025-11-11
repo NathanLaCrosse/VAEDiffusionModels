@@ -29,7 +29,7 @@ with torch.no_grad():
         ims, _ = batch
         ims = ims.to(device)
 
-        latents = vae.forward_encode_only(ims)
+        latents = vae.forward_encode_only_mean(ims)
 
         means += latents.mean(dim=(0,2,3))
         stds += latents.std(dim=(0,2,3))

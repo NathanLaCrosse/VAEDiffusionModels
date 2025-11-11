@@ -46,13 +46,10 @@ def denoise_latent(latent, unet, alphas, betas, alpha_bars, time_encodings, tota
             step_vect = time_encodings[t-1].unsqueeze(0).expand(bs, 64).to(device)
             noise = unet(pred, step_vect, label)
 
-            # sigma_t = torch.sqrt((1 - alpha_bars[t-2]) / (1 - alpha_bars[t-1]) * betas[t-1]) if t > 1 else 0
             pred = 1 / np.sqrt(alphas[t-1]) * (pred - betas[t-1] / np.sqrt(1 - alpha_bars[t-1]) * noise)
 
             if t > 1:
-                pred = pred + np.sqrt(betas[t-1]) * torch.randn_like(pred)           
-
-            # print(noise.std().item(), pred.std().item()) 
+                pred = pred + np.sqrt(betas[t-1]) * torch.randn_like(pred)
 
             t -= 1
         
@@ -62,6 +59,7 @@ def denoise_latent(latent, unet, alphas, betas, alpha_bars, time_encodings, tota
 stats = torch.load("latent_channel_info.pt")
 latent_means = stats['means'].to(device).view(1, -1, 1, 1)
 latent_stds = stats['stds'].to(device).view(1, -1, 1, 1)
+std_shift = 0.4
 
 # Actual testing stuff here
 with torch.no_grad():
@@ -69,11 +67,10 @@ with torch.no_grad():
         rows = 4
         cols = 4
 
-        samp = torch.randn((rows*cols, 8, 8, 8), device=device)
+        samp = latent_means + latent_stds * std_shift * torch.randn((rows*cols, 8, 8, 8), device=device)
         labels = torch.randint(0,100,(rows*cols,), device=device)
 
         denoised = denoise_latent(samp, unet, alphas, betas, alpha_bars, time_encodings, num_time_steps, labels)
-        denoised = denoised * latent_stds + latent_means
 
         ims = vae.forward_decode_only(denoised)
 

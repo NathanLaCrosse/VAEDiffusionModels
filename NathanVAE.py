@@ -65,7 +65,7 @@ class Encoder(nn.Module):
 
         logvar = torch.clamp(logvar, -10, 10) # Prevent overflow in std calculation
         std = torch.exp(0.5 * logvar)
-        KL_div = -0.5 * (1 + logvar - mean ** 2.0 - logvar.exp()).sum(dim=[1, 2, 3]).mean(dim=0) # Loss term
+        KL_div = -0.5 * (1 + logvar - mean ** 2.0 + logvar.exp()).sum(dim=[1, 2, 3]).mean(dim=0) # Loss term
 
         return mean + std * torch.randn_like(logvar), KL_div
 
@@ -86,19 +86,6 @@ class Encoder(nn.Module):
         std = torch.exp(0.5 * logvar)
 
         return mean, std
-
-    def forward_static(self, x):
-        x = self.initial(x)
-        x = self.layer1(x)
-        x = self.down1(x)
-        x = self.layer2(x)
-        x = self.down2(x)
-        x = self.layer3(x)
-        x = self.down3(x)
-        x = self.layer4(x)
-
-        mean = self.to_mean(x)
-        return mean
 
 
 class Decoder(nn.Module):
@@ -207,6 +194,6 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5):
 
     torch.save(model.state_dict(), "mushroom_vae.pt")
 
-epochs = 5
-batch_size = 64
-train_nn(epochs, batch_size)
+# epochs = 5
+# batch_size = 64
+# train_nn(epochs, batch_size)

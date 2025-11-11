@@ -1,3 +1,4 @@
+import cv2
 import pandas as pd
 import numpy as np
 import torch
@@ -133,6 +134,8 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, p
     period_length = epochs * len(dataloader) / num_periods
     batch_idx = 0
 
+    cv2.namedWindow("Original / Reconstruction")
+
     for epoch in range(epochs):
         p_bar = tqdm(dataloader, desc=f"Epoch [{epoch + 1} / {epochs}]")
         for images in p_bar:
@@ -160,13 +163,22 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, p
                 'KL Loss' : k_loss.item(),
                 'Beta' : beta
             })
+            if batch_idx % 4 == 0:
+                with torch.no_grad():
+                    img = images[0].unsqueeze(0)
+                    latent = model.forward_encode_only(img)
+                    reconstructed_img = F.sigmoid(model.forward_decode_only(latent)[0]).cpu()
+                img = np.concatenate((img[0].cpu()[0], reconstructed_img[0]), axis=1)
+                cv2.imshow("Original / Reconstruction", cv2.resize(np.uint8(255 * img), (560, 280)))
+                cv2.waitKey(1)
 
         torch.save(model.state_dict(), f"PTFiles/{save_file}")
         if (epoch+1) % 25 == 0:
             torch.save(model.state_dict(), f"PTFiles/inprogress{epoch}{save_file}")
 
 epochs = 75
-batch_size = 128
+batch_size = 64
+print("Test")
 train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.0001, percep_mult=0.05, save_file="largernorm1.pt", load_file=None, latent_channels=8, mse_mode=True)
 train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.0001, percep_mult=0.15, save_file="largernorm3.pt", load_file=None, latent_channels=8, mse_mode=True)
 train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.00001, percep_mult=0.05, save_file="largernorm4.pt", load_file=None, latent_channels=8, mse_mode=True)

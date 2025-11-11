@@ -86,7 +86,7 @@ class ResidualBlockWithEmbeddings(nn.Module):
             nn.Linear(label_embed_dim, label_embed_dim),
             nn.SiLU(),
             # nn.Dropout(dropout_p),
-            nn.Linear(label_embed_dim,bottleneck_channels),
+            nn.Linear(label_embed_dim,im_dim**2),
             # nn.SiLU()
         )
 
@@ -109,8 +109,8 @@ class ResidualBlockWithEmbeddings(nn.Module):
         batch_size, c, rows, cols = x.size()
 
         # Create local context encodings of t and l
-        local_t = F.normalize(self.time_mlp(t_vect), dim=-1)
-        local_l = F.normalize(self.label_mlp(l_vect), dim=-1)
+        local_t = self.time_mlp(t_vect)
+        local_l = self.label_mlp(l_vect)
 
         # First convolution
         res = F.silu(self.norm1(self.conv1(x)))
@@ -120,12 +120,13 @@ class ResidualBlockWithEmbeddings(nn.Module):
         res = res + local_t[:, :, None, None]
 
         # local_l has length dim**2 -> convert into a different view added to resp
-        # local_l = local_l.view(batch_size, self.im_dim, self.im_dim)
-        # res = res + local_l[:, None, :, :]
-        res = res + local_l[:, :, None, None]
+        local_l = local_l.view(batch_size, self.im_dim, self.im_dim)
+        res = res + local_l[:, None, :, :]
+        # res = res + local_l[:, :, None, None]
 
         # Perform the rest of the convolutions
-        res = F.silu(self.conv2(res))
+        res = F.silu(res)
+        res = self.conv2(res)
         res = self.norm2(F.silu(self.conv3(res)))
 
         if self.dropout_p > 0:

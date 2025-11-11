@@ -67,7 +67,7 @@ class UNET(nn.Module):
         self.to_out = nn.Conv2d(16, 8, 1)
 
     def forward(self, x, time_embed, l):
-        global_t = self.time_mlp(time_embed)
+        global_t = self.time_mlp(time_embed * 10)
         global_l = self.label_mlp(l)
 
         step1 = self.initial(x) # 8 x 8 x 8 -> 16 x 8 x 8
@@ -90,8 +90,6 @@ class UNET(nn.Module):
         up = self.upres2(up, global_t, global_l) # 16 x 8 x 8 -> 16 x 8 x 8
 
         return self.to_out(up)
-
-
 
 def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps = 1000, file_base = "unet.pt",
                vae_file = "PTFiles/largernorm3.pt", vae_latent_channels=8, dropout=0.0, load_file=None):
@@ -173,11 +171,6 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
 
             noisy_latents = torch.sqrt(used_alpha_bars) * latents + torch.sqrt(1 - used_alpha_bars) * noise
 
-
-            # Grab time encodings
-            # step_vect = time_encodings[time_step, :] # Shape: (64,)
-            # step_vect = step_vect.unsqueeze(0).expand(local_bs, 64) # Shape: (local_bs, 64)
-
             optimizer.zero_grad()
 
             output_latent = unet_model(noisy_latents, time_encodings[time_steps], labels)
@@ -197,6 +190,6 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
             torch.save(unet_model.state_dict(), f"PTFiles/inprogress{epoch}{file_base}")
 
 if __name__ == '__main__': 
-    train_unet(epochs=500, batch_size=256, file_base="nobackflowref2.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.0, load_file="PTFiles/nobackflowref.pt")
+    train_unet(epochs=200, batch_size=256, file_base="nonnorm2.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.0)
     # train_unet(epochs=50, batch_size=256, file_base="refined.pt", num_time_steps=1000, learning_rate=5e-7, dropout=0.0, load_file="PTFiles/thousand.pt")
     # train_unet(epochs=200, batch_size=256, file_base="thousand.pt", num_time_steps=100, learning_rate=1e-4)

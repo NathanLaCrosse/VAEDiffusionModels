@@ -52,8 +52,10 @@ def generate_train_test_split(data_dir="MushroomData/", train_prop=0.8):
 
 
 class MushroomData(Dataset):
-    def __init__(self, json_file):
+    def __init__(self, json_file, mse_mode=False):
         super(MushroomData, self).__init__()
+
+        self.mse_mode = mse_mode
 
         with open(json_file, 'r') as file:
             self.data = json.load(file)
@@ -66,6 +68,8 @@ class MushroomData(Dataset):
 
         im = cv2.imread(path)[:,:,::-1]
         im = im / 255  # Scale to be in [0, 1]
+        if self.mse_mode:
+            im = im * 2 - 1 # Scale to be in [-1, 1]
         im = torch.tensor(im, dtype=torch.float32).permute(2, 0, 1).contiguous()
 
         return im, label

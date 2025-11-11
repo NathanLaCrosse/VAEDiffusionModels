@@ -25,8 +25,6 @@ with torch.no_grad():
 
     # Calculate (or retrieve) the mean and standard deviation of the whole distribution
     # ---> (over every singe latent vector)
-    global_mean = torch.zeros((latent_channels, 8, 8))
-    global_std = torch.zeros((latent_channels, 8, 8))
     cpu = torch.device('cpu')
 
     model = model.eval()
@@ -37,7 +35,7 @@ with torch.no_grad():
     fig, ax = plt.subplots(rows, cols)
     for i in range(rows):
         for j in range(cols):
-            x = torch.randn_like(global_std.view(1,latent_channels,8,8))
+            x = torch.randn((1,latent_channels,8,8))
             x = model.forward_decode_only(x)[0, :, :, :].permute(1, 2, 0)
             if not mse_mode:
                 x = F.sigmoid(x)

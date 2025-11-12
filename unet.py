@@ -212,7 +212,9 @@ if __name__ == '__main__':
     # Can select another scaling factor ~0.4 multiplied by the latent standard deviation
     # Gets closer convergence to the mean
     # train_unet(epochs=200, batch_size=64, file_base="ema_deeper.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.0)
-    train_unet(epochs=100, batch_size=64, file_base="ema_deeperef.pt", num_time_steps=1000, learning_rate=5e-5, dropout=0.0, load_file="PTFiles/ema_deeper.pt")
+    # train_unet(epochs=100, batch_size=64, file_base="ema_deeperef.pt", num_time_steps=1000, learning_rate=5e-5, dropout=0.0, load_file="PTFiles/ema_deeper.pt")
+    train_unet(epochs=60, batch_size=32, file_base="ema_deeperfine.pt", num_time_steps=1000, learning_rate=3e-5, dropout=0.0, load_file="PTFiles/ema_deeperef.pt")
+    train_unet(epochs=60, batch_size=16, file_base="ema_deeperfine2.pt", num_time_steps=1000, learning_rate=1e-5, dropout=0.0, load_file="PTFiles/ema_deeperfine.pt")
     # train_unet(epochs=200, batch_size=64, file_base="unconditionalref.pt", num_time_steps=1000, learning_rate=5e-5, dropout=0.0, load_file="PTFiles/unconditional.pt")
     # train_unet(epochs=50, batch_size=256, file_base="refined.pt", num_time_steps=1000, learning_rate=5e-7, dropout=0.0, load_file="PTFiles/thousand.pt")
     # train_unet(epochs=200, batch_size=256, file_base="thousand.pt", num_time_steps=100, learning_rate=1e-4)

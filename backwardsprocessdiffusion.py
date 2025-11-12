@@ -20,9 +20,9 @@ unet = UNET(64, 128, 100)
 vae.load_state_dict(torch.load("PTFiles/largernorm3.pt", map_location=device))
 # unet.load_state_dict(torch.load("PTFiles/unconditionalref.pt", map_location=device)['model'])
 
-ema = ExponentialMovingAverage(unet.parameters(), decay=0.9999)
+ema = ExponentialMovingAverage(unet.parameters(), decay=0.999)
 
-checkpoint = torch.load("PTFiles/ema_deeper.pt")
+checkpoint = torch.load("PTFiles/ema_deeperef.pt")
 unet.load_state_dict(checkpoint['model'])
 ema.load_state_dict(checkpoint['ema'])
 
@@ -39,6 +39,9 @@ alpha_bars = torch.zeros(num_time_steps, device=device)
 alpha_bars[0] = alphas[0]
 for i in range(1, num_time_steps):
     alpha_bars[i] = alphas[i] * alpha_bars[i-1]
+
+# betas, alphas, alpha_bars = cosine_beta_schedule(num_time_steps)
+
 time_encodings = nc.positional_encoding(num_time_steps, 64).to(device)
 
 # print(alpha_bars[:5], alpha_bars[-5:])
@@ -69,7 +72,7 @@ def denoise_latent(latent, unet, alphas, betas, alpha_bars, time_encodings, tota
 stats = torch.load("latent_channel_info.pt")
 latent_means = stats['means'].to(device).view(1, -1, 1, 1)
 latent_stds = stats['stds'].to(device).view(1, -1, 1, 1)
-std_shift = 0.4
+std_shift = 1
 
 # print("Original Stats:", latent_means.mean().item(), latent_stds.mean().item())
 

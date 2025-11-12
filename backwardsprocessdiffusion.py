@@ -20,7 +20,7 @@ unet = UNET(64, 128, 100)
 vae.load_state_dict(torch.load("PTFiles/largernorm3.pt", map_location=device))
 # unet.load_state_dict(torch.load("PTFiles/unconditionalref.pt", map_location=device)['model'])
 
-ema = ExponentialMovingAverage(unet.parameters(), decay=0.999)
+ema = ExponentialMovingAverage(unet.parameters(), decay=0.9999)
 
 checkpoint = torch.load("PTFiles/ema_deeperfine2.pt")
 unet.load_state_dict(checkpoint['model'])
@@ -68,7 +68,6 @@ def denoise_latent(latent, unet, alphas, betas, alpha_bars, time_encodings, tota
             
             return pred
 
-
 stats = torch.load("latent_channel_info.pt")
 latent_means = stats['means'].to(device).view(1, -1, 1, 1)
 latent_stds = stats['stds'].to(device).view(1, -1, 1, 1)
@@ -90,6 +89,7 @@ with torch.no_grad():
         labels = torch.randint(0,100,(rows*cols,), device=device)
 
         denoised = denoise_latent(samp, unet, alphas, betas, alpha_bars, time_encodings, denoise_steps)
+        # denoised = denoise_latent_ddim(samp, unet, alpha_bars, time_encodings, 1000, 250, 0.2, ema, device)
 
         ims = vae.forward_decode_only(denoised)
 

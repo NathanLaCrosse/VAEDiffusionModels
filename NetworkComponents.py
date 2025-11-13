@@ -86,8 +86,7 @@ class ResidualBlockWithEmbeddings(nn.Module):
             nn.Linear(label_embed_dim, label_embed_dim),
             nn.SiLU(),
             # nn.Dropout(dropout_p),
-            nn.Linear(label_embed_dim,im_dim**2),
-            nn.Tanh()
+            nn.Linear(label_embed_dim,im_dim**2)
         )
 
         self.conv1 = nn.Conv2d(initial_channels, bottleneck_channels, 1)
@@ -113,7 +112,7 @@ class ResidualBlockWithEmbeddings(nn.Module):
         local_l = self.label_mlp(l_vect).view(batch_size, 1, self.im_dim, self.im_dim).contiguous()
 
         # First convolution
-        res = self.norm1(F.silu((self.conv1(x))))
+        res = self.norm1(F.silu(self.conv1(x)))
 
         # local_t has length bottleneck channels -> convert into a view so that
         # it can be added to res. Then apply swish to zero out unimportant information

@@ -22,7 +22,7 @@ vae.load_state_dict(torch.load("PTFiles/largernorm3.pt", map_location=device))
 
 ema = ExponentialMovingAverage(unet.parameters(), decay=0.9999)
 
-checkpoint = torch.load("PTFiles/conditional_ema2.pt")
+checkpoint = torch.load("PTFiles/conditional_ema2_3.pt")
 unet.load_state_dict(checkpoint['model'])
 ema.load_state_dict(checkpoint['ema'])
 

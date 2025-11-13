@@ -70,7 +70,7 @@ class UNET(nn.Module):
         self.to_out = nn.Conv2d(32, 8, 1)
 
     def forward(self, x, time_embed, l):
-        global_t = self.time_mlp(time_embed * 10)
+        global_t = self.time_mlp(time_embed)
         global_l = self.label_mlp(self.label_embed(l))
 
         step1 = self.initial(x) # 8 x 8 x 8 -> 16 x 8 x 8
@@ -228,10 +228,10 @@ if __name__ == '__main__':
     # unet_model.load_state_dict(torch.load("savetest.pt")['model'])
     # print('hi')
 
-    # train_unet(epochs=40, batch_size=64, file_base="conditional_ema.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.0)
-    # train_unet(epochs=60, batch_size=32, file_base="conditional_ema1.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.0, load_file="PTFiles/conditional_ema.pt")
-    # train_unet(epochs=80, batch_size=32, file_base="conditional_ema2.pt", num_time_steps=1000, learning_rate=5e-5, dropout=0.0, load_file="PTFiles/conditional_ema1.pt")
-    train_unet(epochs=80, batch_size=16, file_base="conditional_ema3.pt", num_time_steps=1000, learning_rate=2e-5, dropout=0.0, load_file="PTFiles/conditional_ema2.pt")
+    train_unet(epochs=40, batch_size=64, file_base="conditional_ema2_1.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.0)
+    train_unet(epochs=60, batch_size=32, file_base="conditional_ema2_2.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.0, load_file="PTFiles/conditional_ema2_1.pt")
+    train_unet(epochs=80, batch_size=16, file_base="conditional_ema2_3.pt", num_time_steps=1000, learning_rate=5e-5, dropout=0.0, load_file="PTFiles/conditional_ema2_2.pt")
+    train_unet(epochs=80, batch_size=8, file_base="conditional_ema2_4.pt", num_time_steps=1000, learning_rate=2e-5, dropout=0.0, load_file="PTFiles/conditional_ema2_3.pt")
 
     # train_unet(epochs=200, batch_size=64, file_base="ema_deeper.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.0)
     # train_unet(epochs=100, batch_size=64, file_base="ema_deeperef.pt", num_time_steps=1000, learning_rate=5e-5, dropout=0.0, load_file="PTFiles/ema_deeper.pt")

@@ -33,14 +33,14 @@ class UNET(nn.Module):
             nn.Linear(time_embed_dim * 4, time_embed_dim),
             nn.SiLU()
         )
-        # self.label_mlp = nn.Sequential(
-        #     nn.Embedding(num_classes, label_embed_dim),
-        #     nn.Linear(label_embed_dim, label_embed_dim * 4),
-        #     nn.SiLU(),
-        #     nn.Dropout(dropout_p),
-        #     nn.Linear(label_embed_dim*4, label_embed_dim),
-        #     nn.SiLU()
-        # )
+        self.label_embed = nn.Embedding(num_classes, label_embed_dim)
+        self.label_mlp = nn.Sequential(
+            nn.Linear(label_embed_dim, label_embed_dim * 4),
+            nn.SiLU(),
+            nn.Dropout(dropout_p),
+            nn.Linear(label_embed_dim*4, label_embed_dim),
+            nn.SiLU()
+        )
 
         # Downward pass of the UNet
         self.initial = nn.Conv2d(8, 32, 1) # 8 x 8 x 8 -> 16 x 8 x 8
@@ -69,28 +69,28 @@ class UNET(nn.Module):
 
         self.to_out = nn.Conv2d(32, 8, 1)
 
-    def forward(self, x, time_embed):
+    def forward(self, x, time_embed, l):
         global_t = self.time_mlp(time_embed * 10)
-        # global_l = self.label_mlp(l)
+        global_l = self.label_mlp(self.label_embed(l))
 
         step1 = self.initial(x) # 8 x 8 x 8 -> 16 x 8 x 8
-        step1 = self.downres1(step1, global_t) # 16 x 8 x 8 -> 16 x 8 x 8
+        step1 = self.downres1(step1, global_t, global_l) # 16 x 8 x 8 -> 16 x 8 x 8
 
         step2 = self.down1(step1) # 16 x 8 x 8 -> 32 x 4 x 4
-        step2 = self.downres2(step2, global_t) # 32 x 4 x 4 -> 32 x 4 x 4
+        step2 = self.downres2(step2, global_t, global_l) # 32 x 4 x 4 -> 32 x 4 x 4
 
         step3 = self.down2(step2) # 32 x 4 x 4 -> 64 x 2 x 2
-        step3 = self.downres3(step3, global_t) # 64 x 2 x 2 -> 64 x 2 x 2 (Bottom step)
+        step3 = self.downres3(step3, global_t, global_l) # 64 x 2 x 2 -> 64 x 2 x 2 (Bottom step)
 
-        up = self.smoothing1(self.upconv1(step3), global_t) # 64 x 2 x 2 -> 32 x 4 x 4
+        up = self.smoothing1(self.upconv1(step3), global_t, global_l) # 64 x 2 x 2 -> 32 x 4 x 4
         up = torch.cat([step2, up], dim=1) # 32 x 4 x 4 -> 64 x 4 x 4
         up = self.reduce_channels1(up) # 64 x 4 x 4 -> 32 x 4 x 4
-        up = self.upres1(up, global_t) # 32 x 4 x 4 -> 32 x 4 x 4
+        up = self.upres1(up, global_t, global_l) # 32 x 4 x 4 -> 32 x 4 x 4
 
-        up = self.smoothing2(self.upconv2(up), global_t) # 32 x 4 x 4 -> 16 x 8 x 8
+        up = self.smoothing2(self.upconv2(up), global_t, global_l) # 32 x 4 x 4 -> 16 x 8 x 8
         up = torch.cat([step1, up], dim=1) # 16 x 8 x 8 -> 32 x 8 x 8
         up = self.reduce_channels2(up) # 32 x 8 x 8 -> 16 x 8 x 8
-        up = self.upres2(up, global_t) # 16 x 8 x 8 -> 16 x 8 x 8
+        up = self.upres2(up, global_t, global_l) # 16 x 8 x 8 -> 16 x 8 x 8
 
         return self.to_out(up)
 
@@ -108,6 +108,7 @@ class UNET(nn.Module):
 #     alpha_bars = torch.cumprod(alphas, dim=0)
 
 #     return betas, alphas, alpha_bars
+from torch.utils.data import WeightedRandomSampler
 
 def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps = 1000, file_base = "unet.pt",
                vae_file = "PTFiles/largernorm3.pt", vae_latent_channels=8, dropout=0.0, load_file=None):
@@ -141,11 +142,11 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
     # alpha_bars = alpha_bars.to(device)
 
     unet_model = UNET(64, 128, 100, dropout_p=dropout).to(device)
-    ema = ExponentialMovingAverage(unet_model.parameters(), decay=0.999)
+    ema = ExponentialMovingAverage(unet_model.parameters(), decay=0.9999)
     ema.to(device)
 
     if load_file is not None:
-        checkpoint = torch.load("PTFiles/ema_deeper.pt", map_location=device)
+        checkpoint = torch.load(load_file, map_location=device)
         unet_model.load_state_dict(checkpoint['model'])
         ema.load_state_dict(checkpoint['ema'])
         # unet_model.load_state_dict(torch.load(load_file, map_location=device))
@@ -162,8 +163,16 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
     latent_means = stats['means'].to(device).view(1, -1, 1, 1)
     latent_stds = stats['stds'].to(device).view(1, -1, 1, 1)
 
+    labels = np.array([dataset[i][1] for i in range(len(dataset))])
+    class_counts = np.bincount(labels)
+    class_weights = 1.0 / np.maximum(class_counts, 1)
+    class_weights = class_weights ** 0.5
+    sample_weights = class_weights[labels]
+    sampler = WeightedRandomSampler(weights=sample_weights, num_samples=len(sample_weights), replacement=True)
+
+
     for epoch in range(epochs):
-        dataloader = DataLoader(dataset, batch_size, shuffle=True)
+        dataloader = DataLoader(dataset, batch_size, sampler=sampler)
         p_bar = tqdm(dataloader, desc=f"Epoch [{epoch + 1} / {epochs}]")
 
         for _, batch in enumerate(p_bar):
@@ -187,7 +196,7 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
 
             optimizer.zero_grad()
 
-            output_latent = unet_model(noisy_latents, time_encodings[time_steps])
+            output_latent = unet_model(noisy_latents, time_encodings[time_steps], labels)
 
             loss = loss_fn(noise, output_latent)
             loss.backward()
@@ -202,20 +211,33 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
 
         # scheduler.step()
         torch.save({'model' : unet_model.state_dict(), 'ema' : ema.state_dict()}, f"PTFiles/{file_base}")
-        if (epoch + 1) % 35 == 0:
-            torch.save({'model' : unet_model.state_dict(), 'ema' : ema.state_dict()}, f"PTFiles/inprogress{epoch}{file_base}")
+        # if (epoch + 1) % 35 == 0:
+        #     torch.save({'model' : unet_model.state_dict(), 'ema' : ema.state_dict()}, f"PTFiles/inprogress{epoch}{file_base}")
 
 if __name__ == '__main__':
+    pass
     # batch size could be too big (256 -> 64 -> 32?)
     # train on just the mu, not mu + std (Done!)
     # In diffusion process - sample from distribution generated by means (latent vectors)
     # Can select another scaling factor ~0.4 multiplied by the latent standard deviation
-    # Gets closer convergence to the mean
+    # Gets closer convergence to the mean\
+
+    # unet_model = UNET(64, 128, 100)
+    # torch.save({'model': unet_model.state_dict()}, 'savetest.pt')
+    # unet_model = UNET(64, 128, 100)
+    # unet_model.load_state_dict(torch.load("savetest.pt")['model'])
+    # print('hi')
+
+    # train_unet(epochs=40, batch_size=64, file_base="conditional_ema.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.0)
+    # train_unet(epochs=60, batch_size=32, file_base="conditional_ema1.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.0, load_file="PTFiles/conditional_ema.pt")
+    # train_unet(epochs=80, batch_size=32, file_base="conditional_ema2.pt", num_time_steps=1000, learning_rate=5e-5, dropout=0.0, load_file="PTFiles/conditional_ema1.pt")
+    train_unet(epochs=80, batch_size=16, file_base="conditional_ema3.pt", num_time_steps=1000, learning_rate=2e-5, dropout=0.0, load_file="PTFiles/conditional_ema2.pt")
+
     # train_unet(epochs=200, batch_size=64, file_base="ema_deeper.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.0)
     # train_unet(epochs=100, batch_size=64, file_base="ema_deeperef.pt", num_time_steps=1000, learning_rate=5e-5, dropout=0.0, load_file="PTFiles/ema_deeper.pt")
     # train_unet(epochs=60, batch_size=32, file_base="ema_deeperfine.pt", num_time_steps=1000, learning_rate=3e-5, dropout=0.0, load_file="PTFiles/ema_deeperef.pt")
-    train_unet(epochs=60, batch_size=16, file_base="ema_deeperfine2.pt", num_time_steps=1000, learning_rate=1e-5, dropout=0.0, load_file="PTFiles/ema_deeperfine.pt")
-    train_unet(epochs=60, batch_size=8, file_base="ema_deeperfine3.pt", num_time_steps=1000, learning_rate=5e-6, dropout=0.0, load_file="PTFiles/ema_deeperfine2.pt")
+    # train_unet(epochs=60, batch_size=16, file_base="ema_deeperfine2.pt", num_time_steps=1000, learning_rate=1e-5, dropout=0.0, load_file="PTFiles/ema_deeperfine.pt")
+    # train_unet(epochs=60, batch_size=8, file_base="ema_deeperfine3.pt", num_time_steps=1000, learning_rate=5e-6, dropout=0.0, load_file="PTFiles/ema_deeperfine2.pt")
     # train_unet(epochs=200, batch_size=64, file_base="unconditionalref.pt", num_time_steps=1000, learning_rate=5e-5, dropout=0.0, load_file="PTFiles/unconditional.pt")
     # train_unet(epochs=50, batch_size=256, file_base="refined.pt", num_time_steps=1000, learning_rate=5e-7, dropout=0.0, load_file="PTFiles/thousand.pt")
     # train_unet(epochs=200, batch_size=256, file_base="thousand.pt", num_time_steps=100, learning_rate=1e-4)

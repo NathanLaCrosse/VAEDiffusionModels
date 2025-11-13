@@ -82,23 +82,23 @@ class ResidualBlockWithEmbeddings(nn.Module):
 
         # Similar to the time mlp, this draws out locally important information of out the
         # global label information
-        # self.label_mlp = nn.Sequential(
-        #     nn.Linear(label_embed_dim, label_embed_dim),
-        #     nn.SiLU(),
-        #     # nn.Dropout(dropout_p),
-        #     nn.Linear(label_embed_dim,im_dim**2),
-        #     # nn.SiLU()
-        # )
+        self.label_mlp = nn.Sequential(
+            nn.Linear(label_embed_dim, label_embed_dim),
+            nn.SiLU(),
+            # nn.Dropout(dropout_p),
+            nn.Linear(label_embed_dim,im_dim**2),
+            nn.Tanh()
+        )
 
         self.conv1 = nn.Conv2d(initial_channels, bottleneck_channels, 1)
-        self.conv2 = nn.Conv2d(bottleneck_channels, bottleneck_channels, 3, 1, 1)
+        self.conv2 = nn.Conv2d(bottleneck_channels+1, bottleneck_channels, 3, 1, 1)
         self.conv3 = nn.Conv2d(bottleneck_channels, initial_channels, 1)
 
         # Extra normalization stuff
         self.norm1 = nn.GroupNorm(8, bottleneck_channels)
         self.norm2 = nn.GroupNorm(8, initial_channels)
 
-    def forward(self, x, t_vect):
+    def forward(self, x, t_vect, l_vect):
         """
         Forward pass of the residual block.
         :param x: An input image of size (B x C x H x W)
@@ -110,22 +110,20 @@ class ResidualBlockWithEmbeddings(nn.Module):
 
         # Create local context encodings of t and l
         local_t = self.time_mlp(t_vect)
-        # local_l = self.label_mlp(l_vect)
+        local_l = self.label_mlp(l_vect).view(batch_size, 1, self.im_dim, self.im_dim).contiguous()
 
         # First convolution
-        res = F.silu(self.norm1(self.conv1(x)))
+        res = self.norm1(F.silu((self.conv1(x))))
 
         # local_t has length bottleneck channels -> convert into a view so that
-        # it can be added to res
+        # it can be added to res. Then apply swish to zero out unimportant information
         res = res + local_t[:, :, None, None]
+        res = F.silu(res)
 
-        # local_l has length dim**2 -> convert into a different view added to resp
-        # local_l = local_l.view(batch_size, self.im_dim, self.im_dim)
-        # res = res + local_l[:, None, :, :]
-        # res = res + local_l[:, :, None, None]
+        # Concatenate with label embedding to gain conditionality
+        res = torch.cat([res, local_l], dim=1)
 
         # Perform the rest of the convolutions
-        res = F.silu(res)
         res = self.conv2(res)
         res = self.norm2(F.silu(self.conv3(res)))
 
@@ -144,9 +142,9 @@ class NResBlocks(nn.Module):
             [ResidualBlockWithEmbeddings(initial_channels, bottleneck_channels, im_dim, time_embed_dim, label_embed_dim, dropout_p) for i in range(n)]
         )
 
-    def forward(self, x, t_vect):
+    def forward(self, x, t_vect, l_vect):
         for i in range(len(self.blocks)):
-            x = self.blocks[i](x, t_vect)
+            x = self.blocks[i](x, t_vect, l_vect)
         return x
 
 def positional_encoding(seq_len, dim):

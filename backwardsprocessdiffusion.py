@@ -22,7 +22,7 @@ vae.load_state_dict(torch.load("PTFiles/largernorm3.pt", map_location=device))
 
 ema = ExponentialMovingAverage(unet.parameters(), decay=0.9999)
 
-checkpoint = torch.load("PTFiles/ema_deeperfine2.pt")
+checkpoint = torch.load("PTFiles/conditional_ema2.pt")
 unet.load_state_dict(checkpoint['model'])
 ema.load_state_dict(checkpoint['ema'])
 
@@ -47,7 +47,7 @@ time_encodings = nc.positional_encoding(num_time_steps, 64).to(device)
 # print(alpha_bars[:5], alpha_bars[-5:])
 
 # Method to decode latent -> formula from class
-def denoise_latent(latent, unet, alphas, betas, alpha_bars, time_encodings, total_noise_steps):
+def denoise_latent(latent, unet, labels, alphas, betas, alpha_bars, time_encodings, total_noise_steps):
     bs, _, _, _ = latent.size()
     pred = latent
 
@@ -57,7 +57,7 @@ def denoise_latent(latent, unet, alphas, betas, alpha_bars, time_encodings, tota
             while t > 0:
                 step_vect = time_encodings[t-1].unsqueeze(0).expand(bs, 64)
                 
-                noise = unet(pred, step_vect)
+                noise = unet(pred, step_vect, labels)
 
                 pred = 1 / torch.sqrt(alphas[t-1]) * (pred - betas[t-1] / torch.sqrt(1 - alpha_bars[t-1]) * noise)
 
@@ -78,6 +78,7 @@ std_shift = 1
 denoise_steps = 1000
 
 # Actual testing stuff here
+print('Starting...')
 with torch.no_grad():
     while True:
         rows = 7
@@ -88,7 +89,7 @@ with torch.no_grad():
 
         labels = torch.randint(0,100,(rows*cols,), device=device)
 
-        denoised = denoise_latent(samp, unet, alphas, betas, alpha_bars, time_encodings, denoise_steps)
+        denoised = denoise_latent(samp, unet, labels, alphas, betas, alpha_bars, time_encodings, denoise_steps)
         # denoised = denoise_latent_ddim(samp, unet, alpha_bars, time_encodings, 1000, 250, 0.2, ema, device)
 
         ims = vae.forward_decode_only(denoised)

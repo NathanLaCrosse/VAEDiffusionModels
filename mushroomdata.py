@@ -60,6 +60,8 @@ class MushroomData(Dataset):
         with open(json_file, 'r') as file:
             self.data = json.load(file)
 
+        # self.data = self.data[:1000]
+
     def __len__(self):
         return len(self.data)
 

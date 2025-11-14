@@ -16,11 +16,11 @@ vae.load_state_dict(torch.load("PTFiles/largernorm3.pt", map_location=device))
 vae = vae.to(device).eval()
 dat = mushroomdata.MushroomData("DataJsons/testdirs.json", mse_mode=True)
 
-batch_size = 128
+batch_size = 32
 dat_loader = DataLoader(dat, batch_size=batch_size)
 
-means = torch.zeros(8, device=device) # means over channels
-stds = torch.zeros(8, device=device) # means over stds
+means = torch.zeros((8,8,8), device=device) # means over channels
+stds = torch.zeros((8,8,8), device=device) # means over stds
 
 count = 0
 with torch.no_grad():
@@ -31,8 +31,9 @@ with torch.no_grad():
 
         latents = vae.forward_encode_only_mean(ims)
 
-        means += latents.mean(dim=(0,2,3))
-        stds += latents.std(dim=(0,2,3))
+        if len(ims) > 1:
+            means += latents.mean(dim=0)
+            stds += latents.std(dim=0)
 
         count += 1
 

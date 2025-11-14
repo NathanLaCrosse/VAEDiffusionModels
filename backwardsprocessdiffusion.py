@@ -11,6 +11,10 @@ from NathanVAE import VAE
 import matplotlib.pyplot as plt
 from torch_ema import ExponentialMovingAverage
 
+denoise_steps = 1000
+noise_scaling = 1
+sample_scaling = 1
+
 cpu = torch.device('cpu')
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -22,7 +26,7 @@ vae.load_state_dict(torch.load("PTFiles/largernorm3.pt", map_location=device))
 
 ema = ExponentialMovingAverage(unet.parameters(), decay=0.9999)
 
-checkpoint = torch.load("PTFiles/conditional_ema2_3.pt")
+checkpoint = torch.load("PTFiles/conditional_ema2_2.pt", map_location=device)
 unet.load_state_dict(checkpoint['model'])
 ema.load_state_dict(checkpoint['ema'])
 
@@ -44,6 +48,10 @@ for i in range(1, num_time_steps):
 
 time_encodings = nc.positional_encoding(num_time_steps, 64).to(device)
 
+stats = torch.load("latent_channel_info.pt")
+latent_means = stats['means'].to(device).view(1, 8, 8, 8)
+latent_stds = stats['stds'].to(device).view(1, 8, 8, 8)
+
 # print(alpha_bars[:5], alpha_bars[-5:])
 
 # Method to decode latent -> formula from class
@@ -57,7 +65,7 @@ def denoise_latent(latent, unet, labels, alphas, betas, alpha_bars, time_encodin
             while t > 0:
                 step_vect = time_encodings[t-1].unsqueeze(0).expand(bs, 64)
                 
-                noise = unet(pred, step_vect, labels)
+                noise = unet(pred, step_vect, labels) * noise_scaling
 
                 pred = 1 / torch.sqrt(alphas[t-1]) * (pred - betas[t-1] / torch.sqrt(1 - alpha_bars[t-1]) * noise)
 
@@ -68,14 +76,7 @@ def denoise_latent(latent, unet, labels, alphas, betas, alpha_bars, time_encodin
             
             return pred
 
-stats = torch.load("latent_channel_info.pt")
-latent_means = stats['means'].to(device).view(1, -1, 1, 1)
-latent_stds = stats['stds'].to(device).view(1, -1, 1, 1)
-std_shift = 1
-
 # print("Original Stats:", latent_means.mean().item(), latent_stds.mean().item())
-
-denoise_steps = 1000
 
 # Actual testing stuff here
 print('Starting...')
@@ -84,13 +85,15 @@ with torch.no_grad():
         rows = 7
         cols = 7
 
-        samp = latent_means + latent_stds * std_shift * torch.randn((rows*cols, 8, 8, 8), device=device)
+        samp = latent_means + latent_stds * sample_scaling * torch.randn((rows*cols, 8, 8, 8), device=device)
         # samp = torch.randn((rows*cols, 8, 8, 8), device=device)
-
+        #
         labels = torch.randint(0,100,(rows*cols,), device=device)
 
         denoised = denoise_latent(samp, unet, labels, alphas, betas, alpha_bars, time_encodings, denoise_steps)
         # denoised = denoise_latent_ddim(samp, unet, alpha_bars, time_encodings, 1000, 250, 0.2, ema, device)
+
+        # denoised = denoised * latent_stds + latent_means
 
         ims = vae.forward_decode_only(denoised)
 

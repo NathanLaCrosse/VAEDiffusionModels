@@ -22,7 +22,7 @@ vae.load_state_dict(torch.load("PTFiles/largernorm3.pt", map_location=device))
 
 ema = ExponentialMovingAverage(unet.parameters(), decay=0.9999)
 
-checkpoint = torch.load("PTFiles/conditional_ema2_3.pt")
+checkpoint = torch.load("PTFiles/conditional_ema2_4.pt")
 unet.load_state_dict(checkpoint['model'])
 ema.load_state_dict(checkpoint['ema'])
 
@@ -57,7 +57,7 @@ def denoise_latent(latent, unet, labels, alphas, betas, alpha_bars, time_encodin
             while t > 0:
                 step_vect = time_encodings[t-1].unsqueeze(0).expand(bs, 64)
                 
-                noise = unet(pred, step_vect, labels)
+                noise = unet(pred, step_vect, labels) 
 
                 pred = 1 / torch.sqrt(alphas[t-1]) * (pred - betas[t-1] / torch.sqrt(1 - alpha_bars[t-1]) * noise)
 

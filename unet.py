@@ -228,9 +228,9 @@ if __name__ == '__main__':
     # unet_model.load_state_dict(torch.load("savetest.pt")['model'])
     # print('hi')
 
-    train_unet(epochs=40, batch_size=64, file_base="conditional_ema2_1.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.0)
-    train_unet(epochs=60, batch_size=32, file_base="conditional_ema2_2.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.0, load_file="PTFiles/conditional_ema2_1.pt")
-    train_unet(epochs=80, batch_size=16, file_base="conditional_ema2_3.pt", num_time_steps=1000, learning_rate=5e-5, dropout=0.0, load_file="PTFiles/conditional_ema2_2.pt")
+    # train_unet(epochs=40, batch_size=64, file_base="conditional_ema2_1.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.0)
+    # train_unet(epochs=60, batch_size=32, file_base="conditional_ema2_2.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.0, load_file="PTFiles/conditional_ema2_1.pt")
+    train_unet(epochs=80, batch_size=16, file_base="conditional_ema2_3.pt", num_time_steps=1000, learning_rate=5e-5, dropout=0.0, load_file="PTFiles/conditional_ema2_3.pt")
     train_unet(epochs=80, batch_size=8, file_base="conditional_ema2_4.pt", num_time_steps=1000, learning_rate=2e-5, dropout=0.0, load_file="PTFiles/conditional_ema2_3.pt")
 
     # train_unet(epochs=200, batch_size=64, file_base="ema_deeper.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.0)

@@ -7,16 +7,16 @@ class Encoder(nn.Module):
     def __init__(self, latent_channels=8, dropout=0.0):
         super(Encoder, self).__init__()
         self.initial = nn.Conv2d(3, 16, 3, 1, 1) # 16 x 64 x 64
-        self.res1 = nc.NResBlocks(2, 16, 8,64)
+        self.res1 = nc.NVAEResBlocks(2, 16, 16)
         self.attn1 = nc.SelfAttention(16)
         self.down1 = nn.Conv2d(16, 32, 3, 2, 1) # 32 x 32 x 32
-        self.res2 = nc.NResBlocks(2, 32, 16,32)
+        self.res2 = nc.NVAEResBlocks(2, 32, 32)
         self.attn2 = nc.SelfAttention(32)
         self.down2 = nn.Conv2d(32, 64, 3, 2, 1) # 64 x 16 x 16
-        self.res3 = nc.NResBlocks(2, 64, 32,16)
+        self.res3 = nc.NVAEResBlocks(2, 64, 64)
         self.attn3 = nc.SelfAttention(64)
         self.down3 = nn.Conv2d(64, 128, 3, 2, 1) # 128 x 8 x 8
-        self.res4 = nc.NResBlocks(2, 128, 64,8)
+        self.res4 = nc.NVAEResBlocks(2, 128, 128)
         self.attn4 = nc.SelfAttention(128)
 
         self.to_mean = nn.Conv2d(128, latent_channels, 1)
@@ -52,16 +52,16 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
 
         self.initial = nn.Conv2d(latent_channels, 128, 3, 1, 1) # 128 x 8 x 8
-        self.res1 = nc.NResBlocks(2, 128, 64,8)
+        self.res1 = nc.NVAEResBlocks(2, 128, 128)
         self.attn1 = nc.SelfAttention(128)
         self.up1 = nn.ConvTranspose2d(128, 64, 2, 2) # 64 x 16 x 16
-        self.res2 = nc.NResBlocks(2, 64, 32, 16) # 64 x 16 x 16
+        self.res2 = nc.NVAEResBlocks(2, 64, 64) # 64 x 16 x 16
         self.attn2 = nc.SelfAttention(64)
         self.up2 = nn.ConvTranspose2d(64, 32, 2, 2) # 32 x 32 x 32
-        self.res3 = nc.NResBlocks(5, 32, 8, 32) # 32 x 32 x 32
+        self.res3 = nc.NVAEResBlocks(2, 32, 32) # 32 x 32 x 32
         self.attn3 = nc.SelfAttention(32)
         self.up3 = nn.ConvTranspose2d(32, 16, 2, 2) # 16 x 64 x 64
-        self.layer4 = nc.NResBlocks(5, 16, 4, 64) # 16 x 64 x 64
+        self.layer4 = nc.NVAEResBlocks(2, 16, 16) # 16 x 64 x 64
         self.attn4 = nc.SelfAttention(16)
         self.out = nn.Conv2d(16, 3, 3, 1, 1) # 3 x 64 x 64
 

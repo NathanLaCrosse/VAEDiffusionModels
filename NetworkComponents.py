@@ -165,9 +165,11 @@ def positional_encoding(seq_len, dim):
 
 class SelfAttention(nn.Module):
     def __init__(self, channels):
-        super.__init__()
+        super().__init__()
         # Group normalization
-        self.norm = nn.GroupNorm(num_groups=32, num_channels=channels)
+        numgroups = min(16, channels)
+
+        self.norm = nn.GroupNorm(num_groups=numgroups, num_channels=channels)
         # Get queries, keys and values
         self.q = nn.Conv2d(channels, channels, 1)
         self.k = nn.Conv2d(channels, channels, 1)
@@ -193,6 +195,43 @@ class SelfAttention(nn.Module):
         out = torch.matmul(v, attn.transpose(1, 2))
 
         return x + self.conv_out(out)
+
+
+class VAEResnetBlock(nn.Module):
+    def __init__(self, in_channels, out_channels=None):
+        super().__init__()
+
+        numgroups = min(16, in_channels)
+
+        self.norm1 = nn.GroupNorm(numgroups, in_channels)
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
+        self.norm2 = nn.GroupNorm(numgroups, out_channels)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1)
+
+        if in_channels != out_channels:
+            self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1)
+        else:
+            self.shortcut = nn.Identity()
+
+    def forward(self, x):
+        y = self.conv1(F.silu(self.norm1(x)))
+        y = self.conv2(F.silu(self.norm2(y)))
+
+        return self.shortcut(x) + y
+
+class NVAEResBlocks(nn.Module):
+
+    def __init__(self, n, initial_channels, out_channels):
+        super(NVAEResBlocks, self).__init__()
+
+        self.blocks = nn.ModuleList(
+            [VAEResnetBlock(initial_channels, out_channels) for i in range(n)]
+        )
+
+    def forward(self, x):
+        for i in range(len(self.blocks)):
+            x = self.blocks[i](x)
+        return x
 
 
 if __name__ == '__main__':

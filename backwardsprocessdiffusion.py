@@ -20,13 +20,11 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 vae = VAE(8)
 unet = UNET(64, 128, 100)
-
-vae.load_state_dict(torch.load("PTFiles/largernorm3.pt", map_location=device))
-# unet.load_state_dict(torch.load("PTFiles/unconditionalref.pt", map_location=device)['model'])
-
 ema = ExponentialMovingAverage(unet.parameters(), decay=0.9999)
 
-checkpoint = torch.load("PTFiles/conditional_ema2_4.pt")
+vae.load_state_dict(torch.load("PTFiles/largernorm3.pt", map_location=device))
+
+checkpoint = torch.load("PTFiles/conditional_ema2_4.pt", map_location=device)
 unet.load_state_dict(checkpoint['model'])
 ema.load_state_dict(checkpoint['ema'])
 
@@ -44,15 +42,11 @@ alpha_bars[0] = alphas[0]
 for i in range(1, num_time_steps):
     alpha_bars[i] = alphas[i] * alpha_bars[i-1]
 
-# betas, alphas, alpha_bars = cosine_beta_schedule(num_time_steps)
-
 time_encodings = nc.positional_encoding(num_time_steps, 64).to(device)
 
 stats = torch.load("latent_channel_info.pt")
 latent_means = stats['means'].to(device).view(1, 8, 8, 8)
 latent_stds = stats['stds'].to(device).view(1, 8, 8, 8)
-
-# print(alpha_bars[:5], alpha_bars[-5:])
 
 # Method to decode latent -> formula from class
 def denoise_latent(latent, unet, labels, alphas, betas, alpha_bars, time_encodings, total_noise_steps):
@@ -76,13 +70,6 @@ def denoise_latent(latent, unet, labels, alphas, betas, alpha_bars, time_encodin
             
             return pred
 
-stats = torch.load("latent_channel_info.pt")
-latent_means = stats['means'].to(device).view(1, -1, 1, 1)
-latent_stds = stats['stds'].to(device).view(1, -1, 1, 1)
-std_shift = 1
-
-# print("Original Stats:", latent_means.mean().item(), latent_stds.mean().item())
-
 
 # Actual testing stuff here
 print('Starting...')
@@ -94,7 +81,7 @@ with torch.no_grad():
         samp = latent_means + latent_stds * sample_scaling * torch.randn((rows*cols, 8, 8, 8), device=device)
         # samp = torch.randn((rows*cols, 8, 8, 8), device=device)
         #
-        labels = torch.randint(0,100,(rows*cols,), device=device)
+        labels = torch.randint(1,2,(rows*cols,), device=device)
 
         denoised = denoise_latent(samp, unet, labels, alphas, betas, alpha_bars, time_encodings, denoise_steps)
         # denoised = denoise_latent_ddim(samp, unet, alpha_bars, time_encodings, 1000, 250, 0.2, ema, device)
@@ -103,12 +90,6 @@ with torch.no_grad():
 
         ims = vae.forward_decode_only(denoised)
 
-        # print("Latent stats:", )
-        # print("Denoised stats:", denoised.mean().item(), denoised.std().item())
-        
-        # print("Decoded range:", ims[0].min().item(), ims[0].max().item())
-        # print("Samples:", ims[0].view(-1)[:10].tolist())
-
         fig, ax = plt.subplots(rows, cols)
 
         for i in range(rows):
@@ -116,8 +97,6 @@ with torch.no_grad():
                 im = ims[i*cols + k].to(cpu)
                 im = (im + 1) / 2
                 im = im.permute(1,2,0)
-
-                # print("Decoded stats:", im[0].mean().item(), im[0].std().item())
 
                 ax[i, k].imshow(im)
                 ax[i, k].axis('off')

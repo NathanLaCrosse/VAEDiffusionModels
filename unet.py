@@ -59,8 +59,9 @@ class UNET(nn.Module):
         self.up2 = nn.ConvTranspose2d(128, 32, 2, 2) # 128 x 4 x 4 -> 32 x 8 x 8
         # Concatenation here -> 64 x 8 x 8
 
-        self.pass5 = nc.NResBlocks(2, 64, 32, 8, time_embed_dim, label_embed_dim, dropout_p)
-        self.to_out = nn.Conv2d(64, 3, 1)
+        # self.pass5 = nc.NResBlocks(2, 64, 32, 8, time_embed_dim, label_embed_dim, dropout_p)
+        self.pass5 = nc.UNetLayer(64, 8, time_embed_dim, label_embed_dim, dropout_p)
+        self.to_out = nn.Conv2d(64, 8, 1)
 
 
 
@@ -84,7 +85,7 @@ class UNET(nn.Module):
 
         up = self.up2(up) # 32 x 8 x 8
         up = torch.cat([up, res1], dim=1) # 64 x 8 x 8
-        up = self.pass5(up, global_t)
+        up = self.pass5(up, global_t, global_l)
 
         return self.to_out(up)
 
@@ -105,7 +106,7 @@ class UNET(nn.Module):
 from torch.utils.data import WeightedRandomSampler
 
 def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps = 1000, file_base = "unet.pt",
-               vae_file = "PTFiles/largernorm3.pt", vae_latent_channels=8, dropout=0.0, load_file=None):
+               vae_file = "PTFiles/largernorm3.pt", vae_latent_channels=8, dropout=0.0, load_file=None, previous_epochs=0, warmup_steps=2500):
     dataset = mushroomdata.MushroomData("DataJsons/traindirs.json")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -135,7 +136,7 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
     # betas, alphas, alpha_bars = cosine_beta_schedule(num_time_steps)
     # alpha_bars = alpha_bars.to(device)
 
-    unet_model = UNET(64, 128, 100, dropout_p=dropout).to(device)
+    unet_model = UNET(128, 256, 100, dropout_p=dropout).to(device)
     ema = ExponentialMovingAverage(unet_model.parameters(), decay=0.9999)
     ema.to(device)
 
@@ -146,16 +147,35 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
         # unet_model.load_state_dict(torch.load(load_file, map_location=device))
     # unet_model = unet_model.to(device=device)
 
-    time_encodings = nc.positional_encoding(num_time_steps, 64).to(device=device) # (num_time_steps, 64) array of time encodings
+    time_encodings = nc.positional_encoding(num_time_steps, 128).to(device=device) # (num_time_steps, 64) array of time encodings
 
     loss_fn = nn.MSELoss(reduction="mean")
     optimizer = torch.optim.Adam(unet_model.parameters(), lr=learning_rate)
 
-    # scheduler = CosineAnnealingLR(optimizer, T_max=epochs, eta_min=min_lr)
+    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+    #     optimizer,
+    #     T_max=epochs * (len(dataset) / batch_size),   
+    #     eta_min=5e-6
+    # )
 
-    stats = torch.load("latent_channel_info.pt")
-    latent_means = stats['means'].to(device).view(1, -1, 1, 1)
-    latent_stds = stats['stds'].to(device).view(1, -1, 1, 1)
+    total_steps = epochs * len(dataset) / batch_size
+    min_lr_ratio = 0.02
+    already_done_steps = previous_epochs * len(dataset) / batch_size
+
+    def lr_lambda(step):
+        step = step + already_done_steps
+        # ----------- Warmup -------------
+        if step < warmup_steps:
+            return float(step) / float(max(1, warmup_steps))
+
+        # ----------- Cosine Decay --------
+        progress = float(step - warmup_steps) / float(max(1, total_steps - warmup_steps))
+        cosine = 0.5 * (1 + math.cos(math.pi * progress))
+
+        # final LR is min_lr_ratio * base_lr
+        return max(cosine * (1 - min_lr_ratio) + min_lr_ratio, min_lr_ratio)
+
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
 
     labels = np.array([dataset[i][1] for i in range(len(dataset))])
     class_counts = np.bincount(labels)
@@ -165,7 +185,7 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
     sampler = WeightedRandomSampler(weights=sample_weights, num_samples=len(sample_weights), replacement=True)
 
 
-    for epoch in range(epochs):
+    for epoch in range(previous_epochs, epochs):
         dataloader = DataLoader(dataset, batch_size, sampler=sampler)
         p_bar = tqdm(dataloader, desc=f"Epoch [{epoch + 1} / {epochs}]")
 
@@ -197,27 +217,20 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
             torch.nn.utils.clip_grad_norm_(unet_model.parameters(), 5.0)
             optimizer.step()
             ema.update()
-            # scheduler.step()
+            scheduler.step()
 
             p_bar.set_postfix({
-                'Loss' : loss.item()
+                'Loss' : loss.item(),
+                'LR' : scheduler.get_last_lr()
             })
 
         # scheduler.step()
         torch.save({'model' : unet_model.state_dict(), 'ema' : ema.state_dict()}, f"PTFiles/{file_base}")
-        # if (epoch + 1) % 35 == 0:
-        #     torch.save({'model' : unet_model.state_dict(), 'ema' : ema.state_dict()}, f"PTFiles/inprogress{epoch}{file_base}")
+        if (epoch + 1) % 40 == 0:
+            torch.save({'model' : unet_model.state_dict(), 'ema' : ema.state_dict()}, f"PTFiles/inprogress{epoch}{file_base}")
 
 if __name__ == '__main__':
     pass
-
-    unet = UNET(64, 128, 100)
-    test = torch.randn(10, 8, 8, 8)
-    time = torch.randn(10, 64)
-    label = torch.randint(0, 100, size=(10,))
-    out = unet(test, time, label)
-
-    print('hi!')
 
     # batch size could be too big (256 -> 64 -> 32?)
     # train on just the mu, not mu + std (Done!)
@@ -230,6 +243,21 @@ if __name__ == '__main__':
     # unet_model = UNET(64, 128, 100)
     # unet_model.load_state_dict(torch.load("savetest.pt")['model'])
     # print('hi')
+
+    # train_unet(epochs=50, batch_size=64, file_base="attention.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.1)
+    # train_unet(epochs=50, batch_size=64, file_base="attention1.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.1, load_file="PTFiles/attention.pt")
+    # train_unet(epochs=50, batch_size=64, file_base="attention2.pt", num_time_steps=1000, learning_rate=5e-5, dropout=0.1, load_file="PTFiles/attention1.pt")
+
+    # train_unet(epochs=150, batch_size=64, file_base="attention3.pt", num_time_steps=1000, learning_rate=5e-5, dropout=0.1, load_file="PTFiles/attention2.pt")
+    train_unet(epochs=250, batch_size=64, file_base="deeper_atten2.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.1, load_file="PTFiles/deeper_atten2.pt", previous_epochs=190)
+    train_unet(epochs=150, batch_size=64, file_base="deeper_atten3.pt", num_time_steps=1000, learning_rate=3e-5, dropout=0.1, load_file="PTFiles/deeper_atten2.pt", previous_epochs=0, warmup_steps=0)
+
+    # 150 - lr around 3e-5
+    # 190
+
+    # train_unet(epochs=50, batch_size=32, file_base="smol_attention.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.1)
+    # train_unet(epochs=50, batch_size=32, file_base="smol_attention1.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.1, load_file="PTFiles/smol_attention.pt")
+    # train_unet(epochs=50, batch_size=32, file_base="smol_attention2.pt", num_time_steps=1000, learning_rate=5e-5, dropout=0.1, load_file="PTFiles/smol_attention1.pt")
 
     # train_unet(epochs=40, batch_size=64, file_base="conditional_ema2_1.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.0)
     # train_unet(epochs=60, batch_size=32, file_base="conditional_ema2_2.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.0, load_file="PTFiles/conditional_ema2_1.pt")

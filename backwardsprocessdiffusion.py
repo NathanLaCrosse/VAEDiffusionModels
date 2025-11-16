@@ -19,12 +19,12 @@ cpu = torch.device('cpu')
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 vae = VAE(8)
-unet = UNET(64, 128, 100)
+unet = UNET(128, 256, 100)
 ema = ExponentialMovingAverage(unet.parameters(), decay=0.9999)
 
 vae.load_state_dict(torch.load("PTFiles/largernorm3.pt", map_location=device))
 
-checkpoint = torch.load("PTFiles/conditional_ema2_4.pt", map_location=device)
+checkpoint = torch.load("PTFiles/deeper_atten3.pt", map_location=device)
 unet.load_state_dict(checkpoint['model'])
 ema.load_state_dict(checkpoint['ema'])
 
@@ -42,7 +42,7 @@ alpha_bars[0] = alphas[0]
 for i in range(1, num_time_steps):
     alpha_bars[i] = alphas[i] * alpha_bars[i-1]
 
-time_encodings = nc.positional_encoding(num_time_steps, 64).to(device)
+time_encodings = nc.positional_encoding(num_time_steps, 128).to(device)
 
 stats = torch.load("latent_channel_info.pt")
 latent_means = stats['means'].to(device).view(1, 8, 8, 8)
@@ -57,7 +57,7 @@ def denoise_latent(latent, unet, labels, alphas, betas, alpha_bars, time_encodin
     with torch.no_grad():
         with ema.average_parameters():
             while t > 0:
-                step_vect = time_encodings[t-1].unsqueeze(0).expand(bs, 64)
+                step_vect = time_encodings[t-1].unsqueeze(0).expand(bs, 128)
                 
                 noise = unet(pred, step_vect, labels) * noise_scaling
 
@@ -81,7 +81,7 @@ with torch.no_grad():
         samp = latent_means + latent_stds * sample_scaling * torch.randn((rows*cols, 8, 8, 8), device=device)
         # samp = torch.randn((rows*cols, 8, 8, 8), device=device)
         #
-        labels = torch.randint(1,2,(rows*cols,), device=device)
+        labels = torch.randint(0,1,(rows*cols,), device=device)
 
         denoised = denoise_latent(samp, unet, labels, alphas, betas, alpha_bars, time_encodings, denoise_steps)
         # denoised = denoise_latent_ddim(samp, unet, alpha_bars, time_encodings, 1000, 250, 0.2, ema, device)

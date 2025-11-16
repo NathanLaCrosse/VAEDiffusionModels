@@ -339,8 +339,8 @@ class UNetLayer(nn.Module):
 
         self.res_block1 = ResidualBlockWithEmbeddings(channels, channels//2, im_dim, time_embed_dim, label_embed_dim, dropout_p)
         self.res_block2 = ResidualBlockWithEmbeddings(channels, channels//2, im_dim, time_embed_dim, label_embed_dim, dropout_p)
-        self.cross = CrossAttention(channels, label_embed_dim, channels//4, dropout_p)
-        self.self_atten = MultiHeadSelfAttention(channels, channels//4, dropout_p)
+        self.cross = CrossAttention(channels, label_embed_dim, channels//16, dropout_p)
+        self.self_atten = MultiHeadSelfAttention(channels, channels//16, dropout_p)
 
     def forward(self, x, t_embed, label_embed):
         x = self.res_block1(x, t_embed)

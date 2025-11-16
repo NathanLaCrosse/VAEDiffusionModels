@@ -193,8 +193,9 @@ class SelfAttention(nn.Module):
         attn = F.softmax(attn, dim=2)
 
         out = torch.matmul(v, attn.transpose(1, 2))
-
+        out = out.view(batch, channels, height, width)
         return x + self.conv_out(out)
+
 
 
 class VAEResnetBlock(nn.Module):
@@ -234,13 +235,13 @@ class NVAEResBlocks(nn.Module):
         return x
 
 
-if __name__ == '__main__':
-    resblock = ResidualBlockWithEmbeddings(16, 7, 2, 64, 256)
-
-    test = torch.randn((3, 16, 2, 2))
-    t_vect = torch.randn((3,64))
-    l_vect = torch.randn((3,256))
-    out = resblock(test, t_vect, l_vect)
-
-    print('hi')
+# if __name__ == '__main__':
+#     resblock = ResidualBlockWithEmbeddings(16, 7, 2, 64, 256)
+#
+#     test = torch.randn((3, 16, 2, 2))
+#     t_vect = torch.randn((3,64))
+#     l_vect = torch.randn((3,256))
+#     out = resblock(test, t_vect, l_vect)
+#
+#     print('hi')
 

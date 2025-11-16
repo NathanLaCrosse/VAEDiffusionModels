@@ -25,15 +25,16 @@ class Encoder(nn.Module):
     def forward(self, x):
         x = self.initial(x)
         x = self.res1(x)
-        x = self.attn1(x)
+        # x = self.attn1(x)
         x = self.down1(x)
         x = self.res2(x)
-        x = self.attn2(x)
+        # x = self.attn2(x)
         x = self.down2(x)
         x = self.res3(x)
         x = self.attn3(x)
         x = self.down3(x)
         x = self.res4(x)
+        x = self.attn4(x)
 
         mean = self.to_mean(x)
         logvar = self.to_logvar(x)
@@ -59,10 +60,8 @@ class Decoder(nn.Module):
         self.attn2 = nc.SelfAttention(64)
         self.up2 = nn.ConvTranspose2d(64, 32, 2, 2) # 32 x 32 x 32
         self.res3 = nc.NVAEResBlocks(2, 32, 32) # 32 x 32 x 32
-        self.attn3 = nc.SelfAttention(32)
         self.up3 = nn.ConvTranspose2d(32, 16, 2, 2) # 16 x 64 x 64
-        self.layer4 = nc.NVAEResBlocks(2, 16, 16) # 16 x 64 x 64
-        self.attn4 = nc.SelfAttention(16)
+        self.res4 = nc.NVAEResBlocks(2, 16, 16) # 16 x 64 x 64
         self.out = nn.Conv2d(16, 3, 3, 1, 1) # 3 x 64 x 64
 
     def forward(self, x):
@@ -74,10 +73,8 @@ class Decoder(nn.Module):
         x = self.attn2(x)
         x = self.up2(x)
         x = self.res3(x)
-        x = self.attn3(x)
         x = self.up3(x)
         x = self.res4(x)
-        x = self.attn4(x)
         return F.tanh(self.out(x)) # force output to be between -1 & 1
 
 

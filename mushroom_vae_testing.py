@@ -9,12 +9,9 @@ import mushroomdata
 from NathanVAE import VAE
 import matplotlib.pyplot as plt
 
-latent_options = [8,8,8,8]
+latent_options = [8,8,8]
 state_dicts = [
-    "PTFiles/largernorm1.pt",
-    "PTFiles/largernorm3.pt",
-    "PTFiles/norm1.pt",
-    "PTFiles/norm3.pt"
+    "PTFiles/inprogress4matt_vae1.pt"
 ]
 
 models = [

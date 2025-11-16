@@ -24,7 +24,7 @@ ema = ExponentialMovingAverage(unet.parameters(), decay=0.9999)
 
 vae.load_state_dict(torch.load("PTFiles/largernorm3.pt", map_location=device))
 
-checkpoint = torch.load("PTFiles/deeper_atten3.pt", map_location=device)
+checkpoint = torch.load("PTFiles/more_channels.pt", map_location=device)
 unet.load_state_dict(checkpoint['model'])
 ema.load_state_dict(checkpoint['ema'])
 

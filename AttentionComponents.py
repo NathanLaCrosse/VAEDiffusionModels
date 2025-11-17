@@ -2,7 +2,6 @@ import math
 import torch
 from torch import nn
 import torch.nn.functional as F
-import NetworkComponents as nc
 
 
 class MultiHeadSelfAttention(nn.Module):
@@ -25,7 +24,7 @@ class MultiHeadSelfAttention(nn.Module):
 
         # Get positional encoding
         if self.pos_cache is None or self.pos_cache.shape[0] != rows*cols:
-            self.pos_cache = nc.two_dimensional_positional_encoding(rows, cols, channels).unsqueeze(0).to(x.device)
+            self.pos_cache = two_dimensional_positional_encoding(rows, cols, channels).unsqueeze(0).to(x.device)
 
         # Apply the attention mechanism
         x = self.atten(x, self.pos_cache)
@@ -84,7 +83,7 @@ class CrossAttention(nn.Module):
 
         # Add positional encoding
         if self.pos_cache is None or self.pos_cache.shape[0] != rows * cols:
-            self.pos_cache = nc.two_dimensional_positional_encoding(rows, cols, channels).unsqueeze(0).to(x.device)
+            self.pos_cache = two_dimensional_positional_encoding(rows, cols, channels).unsqueeze(0).to(x.device)
         normed = normed + self.pos_cache
 
         # Use label to generate keys and values
@@ -187,3 +186,26 @@ class MultiHeadedAttention(nn.Module):
         x = x + self.dropout(self.feedforward(self.layer_norm2(x)))
 
         return x  # (B, S, D)
+
+def two_dimensional_positional_encoding(im_rows, im_cols, encoding_dim):
+    seq_len = im_rows * im_cols
+    rows = torch.arange(seq_len) # Shape (seq_len) -> [0, 1, ..., seq_len-1]
+    rows = (rows / im_cols).floor().unsqueeze(1) # (seq_len, 1)
+
+    cols = torch.tile(torch.arange(im_cols), (im_rows,)).unsqueeze(1) # Shape (seq_len, 1)
+
+    i = torch.arange(encoding_dim).unsqueeze(0) # Shape: (1, encoding_dim)
+    omega = 1 / torch.pow(10000, (2 * (i // 2)) / encoding_dim) # Shape: (1, encoding_dim)
+
+    row_angles = rows * omega
+    col_angles = cols * omega
+
+    pos_enc = torch.zeros(seq_len, encoding_dim)
+    midpoint = encoding_dim // 2
+
+    pos_enc[:, 0:midpoint:2] = torch.sin(row_angles[:, 0:midpoint:2])
+    pos_enc[:, 1:midpoint:2] = torch.cos(row_angles[:, 1:midpoint:2])
+    pos_enc[:, midpoint::2] = torch.sin(col_angles[:, 0:midpoint:2])
+    pos_enc[:, midpoint+1::2] = torch.cos(col_angles[:, 1:midpoint:2])
+
+    return pos_enc

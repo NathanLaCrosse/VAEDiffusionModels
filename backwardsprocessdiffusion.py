@@ -14,12 +14,14 @@ from torch_ema import ExponentialMovingAverage
 denoise_steps = 1000
 noise_scaling = 1
 sample_scaling = 1
+time_emb_dim = 128
+label_emb_dim = 256
 
 cpu = torch.device('cpu')
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 vae = VAE(8)
-unet = UNET(128, 256, 100)
+unet = UNET(time_emb_dim, label_emb_dim, 100)
 ema = ExponentialMovingAverage(unet.parameters(), decay=0.9999)
 
 vae.load_state_dict(torch.load("PTFiles/largernorm3.pt", map_location=device))
@@ -80,13 +82,10 @@ with torch.no_grad():
 
         samp = latent_means + latent_stds * sample_scaling * torch.randn((rows*cols, 8, 8, 8), device=device)
         # samp = torch.randn((rows*cols, 8, 8, 8), device=device)
-        #
-        labels = torch.randint(0,1,(rows*cols,), device=device)
+
+        labels = torch.randint(1,2,(rows*cols,), device=device)
 
         denoised = denoise_latent(samp, unet, labels, alphas, betas, alpha_bars, time_encodings, denoise_steps)
-        # denoised = denoise_latent_ddim(samp, unet, alpha_bars, time_encodings, 1000, 250, 0.2, ema, device)
-
-        # denoised = denoised * latent_stds + latent_means
 
         ims = vae.forward_decode_only(denoised)
 

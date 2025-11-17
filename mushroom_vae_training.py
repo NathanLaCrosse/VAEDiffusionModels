@@ -67,10 +67,8 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, p
         if (epoch+1) % 25 == 0:
             torch.save(model.state_dict(), f"PTFiles/inprogress{epoch}{save_file}")
 
-epochs = 75
-batch_size = 128
-train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.0001, percep_mult=0.05, save_file="largernorm1.pt", load_file=None, latent_channels=8, mse_mode=True)
+if __name__ == '__main__':
+    epochs = 75
+    batch_size = 128
+    train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.00001, percep_mult=0.05, save_file="largernorm1.pt", load_file=None, latent_channels=8, mse_mode=True)
 
-
-# Percep loss starts around 0.4 - check on later
-# beta 0.01 too much

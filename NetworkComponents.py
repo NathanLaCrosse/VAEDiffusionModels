@@ -163,7 +163,7 @@ def positional_encoding(seq_len, dim):
     pos_enc[:, 1::2] = torch.cos(angles[:, 1::2])  # apply cos to odd indices
     return pos_enc
 
-class SelfAttention(nn.Module):
+class WeirdSelfAttention(nn.Module):
     def __init__(self, channels):
         super().__init__()
         # Group normalization
@@ -176,7 +176,7 @@ class SelfAttention(nn.Module):
         self.v = nn.Conv2d(channels, channels, 1)
 
         self.conv_out = nn.Conv2d(channels, channels, kernel_size=1)
-        self.sale = channels ** (-0.5)
+        self.scale = channels ** (-0.5)
 
     def forward(self, x):
         x_norm = self.norm(x)
@@ -190,8 +190,7 @@ class SelfAttention(nn.Module):
         k = k.view(batch, channels, height * width)
         v = v.view(batch, channels, height * width).transpose(1,2)
 
-
-        q = q* self.scale
+        q = q * self.scale
         attn = torch.bmm(q, k)
         attn = F.softmax(attn, dim=-1)
 

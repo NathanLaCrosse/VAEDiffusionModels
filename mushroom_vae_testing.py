@@ -34,6 +34,10 @@ with torch.no_grad():
             preds[i] = (models[i](im.view(1,3,64,64))[0][0] + 1) / 2
             preds[i] = preds[i].permute(1, 2, 0)
 
+            # latent = models[i].forward_encode_only_reparam(im.view(1,3,64,64))
+            # print("Latent Stats:", latent.mean().item(), latent.std().item())
+
+
         im = (im + 1) / 2
         im = im.permute(1,2,0)
 

@@ -63,12 +63,25 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, p
                 'Beta' : beta
             })
 
-        torch.save(model.state_dict(), f"PTFiles/{save_file}")
         if (epoch+1) % 25 == 0:
             torch.save(model.state_dict(), f"PTFiles/inprogress{epoch}{save_file}")
+    torch.save(model.state_dict(), f"PTFiles/{save_file}")
 
+if __name__ == '__main__':
+    epochs = 100
+    batch_size = 64
+    train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.00001, percep_mult=0.05, save_file="attn_vae1.pt", load_file=None, latent_channels=8, mse_mode=True)
+    train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.00001, percep_mult=0.01, save_file="attn_vae2.pt", load_file=None, latent_channels=8, mse_mode=True)
+    train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.00001, percep_mult=0.005, save_file="attn_vae3.pt",load_file=None, latent_channels=8, mse_mode=True)
+    train_nn(epochs, batch_size, lr=0.005, num_periods=6, beta_mult=0.0001, percep_mult=0.05, save_file="attn_vae_largerlr.pt", load_file=None, latent_channels=8, mse_mode=True)
+    train_nn(epochs, batch_size, lr=0.0001, num_periods=6, beta_mult=0.00001, percep_mult=0.05, save_file="attn_vae_smalllr.pt", load_file=None, latent_channels=8, mse_mode=True)
+
+
+<<<<<<< Updated upstream
 if __name__ == '__main__':
     epochs = 75
     batch_size = 128
     train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.00001, percep_mult=0.05, save_file="largernorm1.pt", load_file=None, latent_channels=8, mse_mode=True)
+=======
+>>>>>>> Stashed changes
 

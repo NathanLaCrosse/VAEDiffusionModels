@@ -1,6 +1,10 @@
 import math
 import torch
+<<<<<<< Updated upstream
 from pandas.core.nanops import bottleneck_switch
+=======
+from AttentionComponents import *
+>>>>>>> Stashed changes
 from torch import nn
 import torch.nn.functional as F
 
@@ -199,6 +203,59 @@ class WeirdSelfAttention(nn.Module):
         return x + self.conv_out(out)
 
 
+<<<<<<< Updated upstream
+=======
+class UNetLayer(nn.Module):
+
+    def __init__(self, channels, im_dim, time_embed_dim, label_embed_dim, dropout_p=0.0):
+        super(UNetLayer, self).__init__()
+
+        self.res_block1 = ResidualBlockWithEmbeddings(channels, channels//2, im_dim, time_embed_dim, label_embed_dim, dropout_p)
+        self.res_block2 = ResidualBlockWithEmbeddings(channels, channels//2, im_dim, time_embed_dim, label_embed_dim, dropout_p)
+        self.cross = CrossAttention(channels, label_embed_dim, 8, dropout_p)
+        self.self_atten = MultiHeadSelfAttention(channels, 8, dropout_p)
+
+    def forward(self, x, t_embed, label_embed):
+        x = self.res_block1(x, t_embed)
+        x = self.res_block2(x, t_embed)
+        x = self.cross(x, label_embed)
+        return self.self_atten(x)
+
+class WeirdSelfAttention(nn.Module):
+    def __init__(self, channels):
+        super().__init__()
+        # Group normalization
+        numgroups = min(16, channels)
+
+        self.norm = nn.GroupNorm(channels//4, channels)
+        # Get queries, keys and values
+        self.q = nn.Conv2d(channels, channels, 1)
+        self.k = nn.Conv2d(channels, channels, 1)
+        self.v = nn.Conv2d(channels, channels, 1)
+
+        self.conv_out = nn.Conv2d(channels, channels, kernel_size=1)
+        self.scale = channels ** (-0.5)
+
+    def forward(self, x):
+        x_norm = self.norm(x)
+
+        q = self.q(x_norm)
+        k = self.k(x_norm)
+        v = self.v(x_norm)
+
+        batch, channels, height, width = q.shape
+        q = q.view(batch, channels, height * width).transpose(1,2)
+        k = k.view(batch, channels, height * width)
+        v = v.view(batch, channels, height * width).transpose(1,2)
+
+        q = q * self.scale
+        attn = torch.bmm(q, k)
+        attn = F.softmax(attn, dim=-1)
+
+        out = torch.bmm(attn, v)
+        out = out.transpose(1,2).view(batch, channels, height, width)
+        return x + self.conv_out(out)
+>>>>>>> Stashed changes
 
 class VAEResnetBlock(nn.Module):
     def __init__(self, in_channels, out_channels=None):

@@ -2,8 +2,7 @@ import math
 import torch
 from torch import nn
 import torch.nn.functional as F
-from NetworkComponents import *
-from NetworkComponents import two_dimensional_positional_encoding
+import NetworkComponents as nc
 
 
 class MultiHeadSelfAttention(nn.Module):
@@ -26,7 +25,7 @@ class MultiHeadSelfAttention(nn.Module):
 
         # Get positional encoding
         if self.pos_cache is None or self.pos_cache.shape[0] != rows*cols:
-            self.pos_cache = two_dimensional_positional_encoding(rows, cols, channels).unsqueeze(0).to(x.device)
+            self.pos_cache = nc.two_dimensional_positional_encoding(rows, cols, channels).unsqueeze(0).to(x.device)
 
         # Apply the attention mechanism
         x = self.atten(x, self.pos_cache)
@@ -85,7 +84,7 @@ class CrossAttention(nn.Module):
 
         # Add positional encoding
         if self.pos_cache is None or self.pos_cache.shape[0] != rows * cols:
-            self.pos_cache = two_dimensional_positional_encoding(rows, cols, channels).unsqueeze(0).to(x.device)
+            self.pos_cache = nc.two_dimensional_positional_encoding(rows, cols, channels).unsqueeze(0).to(x.device)
         normed = normed + self.pos_cache
 
         # Use label to generate keys and values

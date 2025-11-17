@@ -1,8 +1,8 @@
 import math
 import torch
+from AttentionComponents import *
 from torch import nn
 import torch.nn.functional as F
-from AttentionComponents import CrossAttention, MultiHeadSelfAttention
 
 class ConvolutionalBlock(nn.Module):
     """
@@ -162,9 +162,28 @@ def positional_encoding(seq_len, dim):
     pos_enc[:, 1::2] = torch.cos(angles[:, 1::2])  # apply cos to odd indices
     return pos_enc
 
+def two_dimensional_positional_encoding(im_rows, im_cols, encoding_dim):
+    seq_len = im_rows * im_cols
+    rows = torch.arange(seq_len) # Shape (seq_len) -> [0, 1, ..., seq_len-1]
+    rows = (rows / im_cols).floor().unsqueeze(1) # (seq_len, 1)
 
+    cols = torch.tile(torch.arange(im_cols), (im_rows,)).unsqueeze(1) # Shape (seq_len, 1)
 
+    i = torch.arange(encoding_dim).unsqueeze(0) # Shape: (1, encoding_dim)
+    omega = 1 / torch.pow(10000, (2 * (i // 2)) / encoding_dim) # Shape: (1, encoding_dim)
 
+    row_angles = rows * omega
+    col_angles = cols * omega
+
+    pos_enc = torch.zeros(seq_len, encoding_dim)
+    midpoint = encoding_dim // 2
+
+    pos_enc[:, 0:midpoint:2] = torch.sin(row_angles[:, 0:midpoint:2])
+    pos_enc[:, 1:midpoint:2] = torch.cos(row_angles[:, 1:midpoint:2])
+    pos_enc[:, midpoint::2] = torch.sin(col_angles[:, 0:midpoint:2])
+    pos_enc[:, midpoint+1::2] = torch.cos(col_angles[:, 1:midpoint:2])
+
+    return pos_enc
 
 
 class UNetLayer(nn.Module):
@@ -183,18 +202,85 @@ class UNetLayer(nn.Module):
         x = self.cross(x, label_embed)
         return self.self_atten(x)
 
+class WeirdSelfAttention(nn.Module):
+    def __init__(self, channels):
+        super().__init__()
+        # Group normalization
+        numgroups = min(16, channels)
 
-if __name__ == '__main__':
-    # pos_enc = two_dimensional_positional_encoding(4, 4, 6)
-    #
-    # for i in range(16):
-    #     print(pos_enc[i])
+        self.norm = nn.GroupNorm(channels//4, channels)
+        # Get queries, keys and values
+        self.q = nn.Conv2d(channels, channels, 1)
+        self.k = nn.Conv2d(channels, channels, 1)
+        self.v = nn.Conv2d(channels, channels, 1)
 
-    atten = MultiHeadSelfAttention(8, 2)
-    # cross = CrossAttention(8, 10, 2, 0)
-    test = torch.randn(2, 8, 5, 7)
-    label = torch.randn(2, 10)
-    out = atten(test)
+        self.conv_out = nn.Conv2d(channels, channels, kernel_size=1)
+        self.scale = channels ** (-0.5)
 
-    print('hi')
+    def forward(self, x):
+        x_norm = self.norm(x)
+
+        q = self.q(x_norm)
+        k = self.k(x_norm)
+        v = self.v(x_norm)
+
+        batch, channels, height, width = q.shape
+        q = q.view(batch, channels, height * width).transpose(1,2)
+        k = k.view(batch, channels, height * width)
+        v = v.view(batch, channels, height * width).transpose(1,2)
+
+        q = q * self.scale
+        attn = torch.bmm(q, k)
+        attn = F.softmax(attn, dim=-1)
+
+        out = torch.bmm(attn, v)
+        out = out.transpose(1,2).view(batch, channels, height, width)
+        return x + self.conv_out(out)
+
+class VAEResnetBlock(nn.Module):
+    def __init__(self, in_channels, out_channels=None):
+        super().__init__()
+
+        numgroups = min(16, in_channels)
+
+        self.norm1 = nn.GroupNorm(numgroups, in_channels)
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
+        self.norm2 = nn.GroupNorm(numgroups, out_channels)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1)
+
+        if in_channels != out_channels:
+            self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1)
+        else:
+            self.shortcut = nn.Identity()
+
+    def forward(self, x):
+        y = self.conv1(F.silu(self.norm1(x)))
+        y = self.conv2(F.silu(self.norm2(y)))
+
+        return self.shortcut(x) + y
+
+class NVAEResBlocks(nn.Module):
+
+    def __init__(self, n, initial_channels, out_channels):
+        super(NVAEResBlocks, self).__init__()
+
+        self.blocks = nn.ModuleList(
+            [VAEResnetBlock(initial_channels, out_channels) for i in range(n)]
+        )
+
+    def forward(self, x):
+        for i in range(len(self.blocks)):
+            x = self.blocks[i](x)
+        return x
+
+
+# if __name__ == '__main__':
+#     resblock = ResidualBlockWithEmbeddings(16, 7, 2, 64, 256)
+#
+#     test = torch.randn((3, 16, 2, 2))
+#     t_vect = torch.randn((3,64))
+#     l_vect = torch.randn((3,256))
+#     out = resblock(test, t_vect, l_vect)
+#
+#     print('hi')
 

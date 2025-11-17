@@ -6,15 +6,12 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 import mushroomdata
-from NathanVAE import VAE
+from Matt_VAE import VAE
 import matplotlib.pyplot as plt
 
-latent_options = [8,8,4,4]
+latent_options = [8]
 state_dicts = [
-    "PTFiles/largernorm1.pt",
-    "PTFiles/largernorm3.pt",
-    "PTFiles/norm1.pt",
-    "PTFiles/norm3.pt"
+    "PTFiles/attn_vae_64x64.pt"
 ]
 
 models = [
@@ -33,10 +30,6 @@ with torch.no_grad():
         for i in range(len(latent_options)):
             preds[i] = (models[i](im.view(1,3,64,64))[0][0] + 1) / 2
             preds[i] = preds[i].permute(1, 2, 0)
-
-            # latent = models[i].forward_encode_only_reparam(im.view(1,3,64,64))
-            # print("Latent Stats:", latent.mean().item(), latent.std().item())
-
 
         im = (im + 1) / 2
         im = im.permute(1,2,0)

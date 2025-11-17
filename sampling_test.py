@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 import mushroomdata
-from NathanVAE import VAE
+from Matt_VAE import VAE
 import matplotlib.pyplot as plt
 import os
 
@@ -15,7 +15,7 @@ model = VAE(latent_channels=latent_channels)
 mse_mode = True
 
 
-name = "largernorm3"
+name = "attn_vae_64x64"
 model.load_state_dict(torch.load(f"PTfiles/{name}.pt", map_location=torch.device('cpu')))
 
 train_dat = mushroomdata.MushroomData(json_file="DataJsons/traindirs.json", mse_mode=mse_mode)
@@ -25,6 +25,8 @@ with torch.no_grad():
 
     # Calculate (or retrieve) the mean and standard deviation of the whole distribution
     # ---> (over every singe latent vector)
+    global_mean = torch.zeros((latent_channels, 16, 16))
+    global_std = torch.zeros((latent_channels, 16, 16))
     cpu = torch.device('cpu')
 
     model = model.eval()
@@ -35,7 +37,7 @@ with torch.no_grad():
     fig, ax = plt.subplots(rows, cols)
     for i in range(rows):
         for j in range(cols):
-            x = torch.randn((1,latent_channels,8,8))
+            x = torch.randn_like(global_std.view(1,latent_channels,16,16))
             x = model.forward_decode_only(x)[0, :, :, :].permute(1, 2, 0)
             if not mse_mode:
                 x = F.sigmoid(x)

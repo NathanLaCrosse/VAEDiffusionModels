@@ -13,11 +13,7 @@ class Encoder(nn.Module):
         self.res2 = nc.NVAEResBlocks(3, 32, 32)
         self.down2 = nn.Conv2d(32, 64, 3, 2, 1) # 64x16x16
         self.res3 = nc.NVAEResBlocks(5, 64, 64)
-<<<<<<< Updated upstream
-        self.down3 = nn.Conv2d(64, 128, 3, 1) # 128x16x16
-=======
         self.down3 = nn.Conv2d(64, 128, 3, 1, 1) # 128x16x16
->>>>>>> Stashed changes
         self.res4 = nc.NVAEResBlocks(2, 128, 128)
         self.attnEnc = ac.MultiHeadSelfAttention(128, 8)
 
@@ -58,13 +54,8 @@ class Decoder(nn.Module):
         self.up1 = nn.ConvTranspose2d(128, 64, 2, 2) # 64 x 32 x 32
         self.res2 = nc.NVAEResBlocks(5, 64, 64) # 64 x 32 x 32
         self.up2 = nn.ConvTranspose2d(64, 32, 2, 2) # 32 x 64 x 64
-<<<<<<< Updated upstream
-        self.res3 = nc.NVAEResBlocks(3, 32, 16) # 32 x 64 x 64
-        self.out = nn.Conv2d(16, 3, 3, 1, 1) # 3 x 64 x 64
-=======
         self.res3 = nc.NVAEResBlocks(3, 32, 32) # 32 x 64 x 64
         self.out = nn.Conv2d(32, 3, 3, 1, 1) # 3 x 64 x 64
->>>>>>> Stashed changes
 
     def forward(self, x):
         x = self.initial(x)

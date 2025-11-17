@@ -1,10 +1,6 @@
 import math
 import torch
-<<<<<<< Updated upstream
-from pandas.core.nanops import bottleneck_switch
-=======
 from AttentionComponents import *
->>>>>>> Stashed changes
 from torch import nn
 import torch.nn.functional as F
 
@@ -79,20 +75,19 @@ class ResidualBlockWithEmbeddings(nn.Module):
         self.time_mlp = nn.Sequential(
             nn.Linear(time_embed_dim, time_embed_dim*4),
             nn.SiLU(),
-            # nn.Dropout(dropout_p),
+            nn.Dropout(dropout_p),
             nn.Linear(time_embed_dim*4, bottleneck_channels),
             # nn.SiLU()
         )
 
         # Similar to the time mlp, this draws out locally important information of out the
         # global label information
-        self.label_mlp = nn.Sequential(
-            nn.Linear(label_embed_dim, label_embed_dim),
-            nn.SiLU(),
-            # nn.Dropout(dropout_p),
-            nn.Linear(label_embed_dim,bottleneck_channels),
-            # nn.SiLU()
-        )
+        # self.label_mlp = nn.Sequential(
+        #     nn.Linear(label_embed_dim, label_embed_dim),
+        #     nn.SiLU(),
+        #     nn.Dropout(dropout_p),
+        #     nn.Linear(label_embed_dim,im_dim**2)
+        # )
 
         self.conv1 = nn.Conv2d(initial_channels, bottleneck_channels, 1)
         self.conv2 = nn.Conv2d(bottleneck_channels, bottleneck_channels, 3, 1, 1)
@@ -102,7 +97,7 @@ class ResidualBlockWithEmbeddings(nn.Module):
         self.norm1 = nn.GroupNorm(8, bottleneck_channels)
         self.norm2 = nn.GroupNorm(8, initial_channels)
 
-    def forward(self, x, t_vect, l_vect):
+    def forward(self, x, t_vect):
         """
         Forward pass of the residual block.
         :param x: An input image of size (B x C x H x W)
@@ -113,23 +108,23 @@ class ResidualBlockWithEmbeddings(nn.Module):
         batch_size, c, rows, cols = x.size()
 
         # Create local context encodings of t and l
-        local_t = F.normalize(self.time_mlp(t_vect), dim=-1)
-        local_l = F.normalize(self.label_mlp(l_vect), dim=-1)
+        local_t = self.time_mlp(t_vect)
+        # local_l = self.label_mlp(l_vect).view(batch_size, 1, self.im_dim, self.im_dim).contiguous()
 
         # First convolution
-        res = F.silu(self.norm1(self.conv1(x)))
+        res = self.norm1(F.silu(self.conv1(x)))
 
         # local_t has length bottleneck channels -> convert into a view so that
-        # it can be added to res
+        # it can be added to res. Then apply swish to zero out unimportant information
+        res = self.conv2(res)
         res = res + local_t[:, :, None, None]
+        res = F.silu(res)
 
-        # local_l has length dim**2 -> convert into a different view added to resp
-        # local_l = local_l.view(batch_size, self.im_dim, self.im_dim)
-        # res = res + local_l[:, None, :, :]
-        res = res + local_l[:, :, None, None]
+        # Concatenate with label embedding to gain conditionality
+        # res = torch.cat([res, local_l], dim=1)
 
         # Perform the rest of the convolutions
-        res = F.silu(self.conv2(res))
+        # res = self.conv2(res)
         res = self.norm2(F.silu(self.conv3(res)))
 
         if self.dropout_p > 0:
@@ -147,9 +142,9 @@ class NResBlocks(nn.Module):
             [ResidualBlockWithEmbeddings(initial_channels, bottleneck_channels, im_dim, time_embed_dim, label_embed_dim, dropout_p) for i in range(n)]
         )
 
-    def forward(self, x, t_vect, l_vect):
+    def forward(self, x, t_vect):
         for i in range(len(self.blocks)):
-            x = self.blocks[i](x, t_vect, l_vect)
+            x = self.blocks[i](x, t_vect)
         return x
 
 def positional_encoding(seq_len, dim):
@@ -167,44 +162,30 @@ def positional_encoding(seq_len, dim):
     pos_enc[:, 1::2] = torch.cos(angles[:, 1::2])  # apply cos to odd indices
     return pos_enc
 
-class WeirdSelfAttention(nn.Module):
-    def __init__(self, channels):
-        super().__init__()
-        # Group normalization
-        numgroups = min(16, channels)
+def two_dimensional_positional_encoding(im_rows, im_cols, encoding_dim):
+    seq_len = im_rows * im_cols
+    rows = torch.arange(seq_len) # Shape (seq_len) -> [0, 1, ..., seq_len-1]
+    rows = (rows / im_cols).floor().unsqueeze(1) # (seq_len, 1)
 
-        self.norm = nn.GroupNorm(num_groups=numgroups, num_channels=channels)
-        # Get queries, keys and values
-        self.q = nn.Conv2d(channels, channels, 1)
-        self.k = nn.Conv2d(channels, channels, 1)
-        self.v = nn.Conv2d(channels, channels, 1)
+    cols = torch.tile(torch.arange(im_cols), (im_rows,)).unsqueeze(1) # Shape (seq_len, 1)
 
-        self.conv_out = nn.Conv2d(channels, channels, kernel_size=1)
-        self.scale = channels ** (-0.5)
+    i = torch.arange(encoding_dim).unsqueeze(0) # Shape: (1, encoding_dim)
+    omega = 1 / torch.pow(10000, (2 * (i // 2)) / encoding_dim) # Shape: (1, encoding_dim)
 
-    def forward(self, x):
-        x_norm = self.norm(x)
+    row_angles = rows * omega
+    col_angles = cols * omega
 
-        q = self.q(x_norm)
-        k = self.k(x_norm)
-        v = self.v(x_norm)
+    pos_enc = torch.zeros(seq_len, encoding_dim)
+    midpoint = encoding_dim // 2
 
-        batch, channels, height, width = q.shape
-        q = q.view(batch, channels, height * width).transpose(1,2)
-        k = k.view(batch, channels, height * width)
-        v = v.view(batch, channels, height * width).transpose(1,2)
+    pos_enc[:, 0:midpoint:2] = torch.sin(row_angles[:, 0:midpoint:2])
+    pos_enc[:, 1:midpoint:2] = torch.cos(row_angles[:, 1:midpoint:2])
+    pos_enc[:, midpoint::2] = torch.sin(col_angles[:, 0:midpoint:2])
+    pos_enc[:, midpoint+1::2] = torch.cos(col_angles[:, 1:midpoint:2])
 
-        q = q * self.scale
-        attn = torch.bmm(q, k)
-        attn = F.softmax(attn, dim=-1)
-
-        out = torch.bmm(attn, v)
-        out = out.transpose(1,2).view(batch, channels, height, width)
-        return x + self.conv_out(out)
+    return pos_enc
 
 
-<<<<<<< Updated upstream
-=======
 class UNetLayer(nn.Module):
 
     def __init__(self, channels, im_dim, time_embed_dim, label_embed_dim, dropout_p=0.0):
@@ -255,7 +236,6 @@ class WeirdSelfAttention(nn.Module):
         out = torch.bmm(attn, v)
         out = out.transpose(1,2).view(batch, channels, height, width)
         return x + self.conv_out(out)
->>>>>>> Stashed changes
 
 class VAEResnetBlock(nn.Module):
     def __init__(self, in_channels, out_channels=None):

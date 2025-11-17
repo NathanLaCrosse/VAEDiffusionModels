@@ -77,11 +77,4 @@ if __name__ == '__main__':
     train_nn(epochs, batch_size, lr=0.0001, num_periods=6, beta_mult=0.00001, percep_mult=0.05, save_file="attn_vae_smalllr.pt", load_file=None, latent_channels=8, mse_mode=True)
 
 
-<<<<<<< Updated upstream
-if __name__ == '__main__':
-    epochs = 75
-    batch_size = 128
-    train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.00001, percep_mult=0.05, save_file="largernorm1.pt", load_file=None, latent_channels=8, mse_mode=True)
-=======
->>>>>>> Stashed changes
 

@@ -9,15 +9,9 @@ import mushroomdata
 from Matt_VAE import VAE
 import matplotlib.pyplot as plt
 
-<<<<<<< Updated upstream
-latent_options = [8,8,8]
-state_dicts = [
-    "PTFiles/inprogress4matt_vae1.pt"
-=======
 latent_options = [8]
 state_dicts = [
     "PTFiles/attn_vae_64x64.pt"
->>>>>>> Stashed changes
 ]
 
 models = [

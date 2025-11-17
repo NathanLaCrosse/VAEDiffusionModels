@@ -255,7 +255,10 @@ if __name__ == '__main__':
     # 150 - lr around 3e-5
     # 190
 
-    train_unet(epochs=200, batch_size=64, file_base="more_channels.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0, previous_epochs=110, load_file="PTFiles/more_channels.pt")
+    # train_unet(epochs=200, batch_size=64, file_base="more_channels.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0, previous_epochs=110, load_file="PTFiles/more_channels.pt")
+
+    train_unet(epochs=200, batch_size=64, file_base="reworked.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0, previous_epochs=25, load_file="PTFiles/reworked.pt")
+    train_unet(epochs=100, batch_size=64, file_base="reworkedref.pt", num_time_steps=1000, learning_rate=3.5e-5, dropout=0, load_file="PTFiles/reworked.pt", warmup_steps=0)
 
     # train_unet(epochs=50, batch_size=32, file_base="smol_attention.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.1)
     # train_unet(epochs=50, batch_size=32, file_base="smol_attention1.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.1, load_file="PTFiles/smol_attention.pt")

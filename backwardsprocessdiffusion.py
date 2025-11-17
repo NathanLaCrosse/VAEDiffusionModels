@@ -33,7 +33,7 @@ ema = ExponentialMovingAverage(unet.parameters(), decay=0.9999)
 
 vae.load_state_dict(torch.load("PTFiles/largernorm3.pt", map_location=device))
 
-checkpoint = torch.load("PTFiles/more_channels.pt", map_location=device)
+checkpoint = torch.load("PTFiles/reworkedref.pt", map_location=device)
 unet.load_state_dict(checkpoint['model'])
 ema.load_state_dict(checkpoint['ema'])
 
@@ -58,8 +58,8 @@ latent_means = stats['means'].to(device).view(1, 8, 8, 8)
 latent_stds = stats['stds'].to(device).view(1, 8, 8, 8)
 
 #Graph components
-rows = 2
-cols = 2
+rows = 7
+cols = 7
 
 
 # Method to decode latent -> formula from class

@@ -176,6 +176,7 @@ class SelfAttention(nn.Module):
         self.v = nn.Conv2d(channels, channels, 1)
 
         self.conv_out = nn.Conv2d(channels, channels, kernel_size=1)
+        self.sale = channels ** (-0.5)
 
     def forward(self, x):
         x_norm = self.norm(x)
@@ -185,15 +186,17 @@ class SelfAttention(nn.Module):
         v = self.v(x_norm)
 
         batch, channels, height, width = q.shape
-        q = q.view(batch, channels, height * width)
+        q = q.view(batch, channels, height * width).transpose(1,2)
         k = k.view(batch, channels, height * width)
-        v = v.view(batch, channels, height * width)
+        v = v.view(batch, channels, height * width).transpose(1,2)
 
-        attn = torch.matmul(q.transpose(1, 2), k)
-        attn = F.softmax(attn, dim=2)
 
-        out = torch.matmul(v, attn.transpose(1, 2))
-        out = out.view(batch, channels, height, width)
+        q = q* self.scale
+        attn = torch.bmm(q, k)
+        attn = F.softmax(attn, dim=-1)
+
+        out = torch.bmm(attn, v)
+        out = out.transpose(1,2).view(batch, channels, height, width)
         return x + self.conv_out(out)
 
 

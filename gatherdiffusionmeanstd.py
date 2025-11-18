@@ -7,20 +7,21 @@ from tqdm import tqdm
 import NetworkComponents as nc
 import mushroomdata
 from unet import UNET
-from NathanVAE import VAE
+from Matt_VAE import VAE
 import matplotlib.pyplot as plt
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 vae = VAE(8)
-vae.load_state_dict(torch.load("PTFiles/largernorm3.pt", map_location=device))
+vae.load_state_dict(torch.load("PTFiles/attn_vae_64x64.pt", map_location=device))
 vae = vae.to(device).eval()
 dat = mushroomdata.MushroomData("DataJsons/testdirs.json", mse_mode=True)
 
 batch_size = 32
 dat_loader = DataLoader(dat, batch_size=batch_size)
+dim = 16
 
-means = torch.zeros((8,8,8), device=device) # means over channels
-stds = torch.zeros((8,8,8), device=device) # means over stds
+means = torch.zeros((8,dim,dim), device=device) # means over channels
+stds = torch.zeros((8,dim,dim), device=device) # means over stds
 
 count = 0
 with torch.no_grad():

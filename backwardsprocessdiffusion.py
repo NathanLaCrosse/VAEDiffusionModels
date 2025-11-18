@@ -7,7 +7,7 @@ from tqdm import tqdm
 import NetworkComponents as nc
 import mushroomdata
 from unet import UNET
-from NathanVAE import VAE
+from Matt_VAE import VAE
 import matplotlib.pyplot as plt
 from torch_ema import ExponentialMovingAverage
 
@@ -21,6 +21,7 @@ noise_scaling = 1
 sample_scaling = 1
 time_emb_dim = 128
 label_emb_dim = 256
+latent_dim = 16
 
 cpu = torch.device('cpu')
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -28,12 +29,12 @@ with open('DataJsons/idx2class.json', 'r') as file:
     idx2class = json.load(file)
 
 vae = VAE(8)
-unet = UNET(time_emb_dim, label_emb_dim, 100)
+unet = UNET(time_emb_dim, label_emb_dim, 100, starting_scale=16)
 ema = ExponentialMovingAverage(unet.parameters(), decay=0.9999)
 
-vae.load_state_dict(torch.load("PTFiles/largernorm3.pt", map_location=device))
+vae.load_state_dict(torch.load("PTFiles/attn_vae_64x64.pt", map_location=device))
 
-checkpoint = torch.load("PTFiles/reworkedref.pt", map_location=device)
+checkpoint = torch.load("PTFiles/new_decoder_unet.pt", map_location=device)
 unet.load_state_dict(checkpoint['model'])
 ema.load_state_dict(checkpoint['ema'])
 
@@ -54,8 +55,8 @@ for i in range(1, num_time_steps):
 time_encodings = nc.positional_encoding(num_time_steps, time_emb_dim).to(device)
 
 stats = torch.load("latent_channel_info.pt")
-latent_means = stats['means'].to(device).view(1, 8, 8, 8)
-latent_stds = stats['stds'].to(device).view(1, 8, 8, 8)
+latent_means = stats['means'].to(device).view(1, 8, latent_dim, latent_dim)
+latent_stds = stats['stds'].to(device).view(1, 8, latent_dim, latent_dim)
 
 #Graph components
 rows = 7
@@ -181,7 +182,7 @@ def plot_final_result():
     with torch.no_grad():
         while True:
 
-            samp = latent_means + latent_stds * sample_scaling * torch.randn((rows*cols, 8, 8, 8), device=device)
+            samp = latent_means + latent_stds * sample_scaling * torch.randn((rows*cols, 8, latent_dim, latent_dim), device=device)
             # samp = torch.randn((rows*cols, 8, 8, 8), device=device)
 
             labels = torch.randint(1,2,(rows*cols,), device=device)
@@ -207,7 +208,7 @@ def plot_final_result():
 def plot_denoising_animation():
     with torch.no_grad():
         bs = rows * cols
-        samp = latent_means + latent_stds * sample_scaling * torch.randn((rows * cols, 8, 8, 8), device=device)
+        samp = latent_means + latent_stds * sample_scaling * torch.randn((rows * cols, 8, latent_dim, latent_dim), device=device)
 
         labels = torch.randint(1, 2, (bs,), device=device)
 

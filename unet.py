@@ -203,7 +203,7 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
             latents = vae_model.forward_encode_only_mean(ims).detach()
 
             # Generate noise and create noisy latents
-            noise = torch.randn((local_bs, 8, 8, 8), device=device)
+            noise = torch.randn((local_bs, vae_latent_channels, latent_width, latent_width), device=device)
             # used_alpha_bars = torch.tensor(alpha_bars, dtype=torch.float32, device=device)[time_steps].view(-1, 1, 1, 1)
             used_alpha_bars = alpha_bars[time_steps].view(-1, 1, 1, 1)
 
@@ -258,8 +258,11 @@ if __name__ == '__main__':
 
     # train_unet(epochs=200, batch_size=64, file_base="more_channels.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0, previous_epochs=110, load_file="PTFiles/more_channels.pt")
 
-    train_unet(epochs=200, batch_size=64, file_base="reworked.pt", num_time_steps=1000, learning_rate=1e-4,
-               dropout=0, previous_epochs=0, vae_file="PTFiles/attn_vae_64x64.pt", latent_width=16)
+    train_unet(epochs=200, batch_size=64, file_base="new_decoder_unet.pt", num_time_steps=1000, learning_rate=1e-4,
+               dropout=0, previous_epochs=78, vae_file="PTFiles/attn_vae_64x64.pt", latent_width=16, load_file="PTFiles/new_decoder_unet.pt")
+    train_unet(epochs=200, batch_size=64, file_base="new_decoder_unetref.pt", num_time_steps=1000, learning_rate=3e-5,
+               dropout=0, previous_epochs=0, vae_file="PTFiles/attn_vae_64x64.pt", latent_width=16, load_file="PTFiles/new_decoder_unet.pt", warmup_steps=0)
+    # 124
     # train_unet(epochs=100, batch_size=64, file_base="reworkedref.pt", num_time_steps=1000, learning_rate=3.5e-5, dropout=0, load_file="PTFiles/reworked.pt", warmup_steps=0)
 
     # train_unet(epochs=50, batch_size=32, file_base="smol_attention.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.1)

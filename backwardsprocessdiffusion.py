@@ -34,7 +34,7 @@ ema = ExponentialMovingAverage(unet.parameters(), decay=0.9999)
 
 vae.load_state_dict(torch.load("PTFiles/attn_vae_64x64.pt", map_location=device))
 
-checkpoint = torch.load("PTFiles/new_decoder_unet.pt", map_location=device)
+checkpoint = torch.load("PTFiles/new_decoder_unetref.pt", map_location=device)
 unet.load_state_dict(checkpoint['model'])
 ema.load_state_dict(checkpoint['ema'])
 
@@ -185,7 +185,7 @@ def plot_final_result():
             samp = latent_means + latent_stds * sample_scaling * torch.randn((rows*cols, 8, latent_dim, latent_dim), device=device)
             # samp = torch.randn((rows*cols, 8, 8, 8), device=device)
 
-            labels = torch.randint(1,2,(rows*cols,), device=device)
+            labels = torch.randint(0,1,(rows*cols,), device=device)
 
             denoised = denoise_latent(samp, unet, labels, alphas, betas, alpha_bars, time_encodings, denoise_steps)
 

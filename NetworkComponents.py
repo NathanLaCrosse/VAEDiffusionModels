@@ -238,18 +238,27 @@ class WeirdSelfAttention(nn.Module):
         return x + self.conv_out(out)
 
 class VAEResnetBlock(nn.Module):
-    def __init__(self, in_channels, out_channels=None):
+    def __init__(self, in_channels, out_channels=None, isDownScaling=True):
         super().__init__()
 
+        #This is here to make sure groups line up for GroupNorm if we go to small channel sizes
         numgroups = min(16, in_channels)
 
         self.norm1 = nn.GroupNorm(numgroups, in_channels)
-        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
+        if isDownScaling:
+            self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, stride=2)
+        else:
+            self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
+
         self.norm2 = nn.GroupNorm(numgroups, out_channels)
         self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1)
 
+        #checking for up sampling or down sampling
         if in_channels != out_channels:
-            self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1)
+            if isDownScaling:
+                self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=2)
+            else:
+                self.shortcut = nn.ConvTranspose2d(in_channels, out_channels, 2, 2)
         else:
             self.shortcut = nn.Identity()
 

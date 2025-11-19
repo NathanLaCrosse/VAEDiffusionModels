@@ -15,17 +15,14 @@ class Encoder(nn.Module):
         self.res2 = nc.NVAEResBlocks(3, 32, 32)
         self.down2 = nn.Conv2d(32, 64, 3, 2, 1) # 64x64x64
 
-        self.res3 = nc.NVAEResBlocks(5, 64, 64)
+        self.res3 = nc.NVAEResBlocks(3, 64, 64)
         self.down3 = nn.Conv2d(64, 128, 3, 2, 1) # 128x32x32
 
-        self.res4 = nc.NVAEResBlocks(3, 128, 128)
-        self.reshape_channels = nn.Conv2d(128, 256, 1)  # 256x32x32
+        self.res4 = nc.NVAEResBlocks(2, 128, 128)
+        self.attnEnc = ac.MultiHeadSelfAttention(128, 8)
 
-        self.res5 = nc.NVAEResBlocks(2, 256, 256)
-        self.attnEnc = ac.MultiHeadSelfAttention(256, 8)
-
-        self.to_mean = nn.Conv2d(256, latent_channels, 1)
-        self.to_logvar = nn.Conv2d(256, latent_channels, 1)
+        self.to_mean = nn.Conv2d(128, latent_channels, 1)
+        self.to_logvar = nn.Conv2d(128, latent_channels, 1)
 
     def forward(self, x):
         x = self.initial(x)
@@ -36,8 +33,6 @@ class Encoder(nn.Module):
         x = self.res3(x)
         x = self.down3(x)
         x = self.res4(x)
-        x = self.reshape_channels(x)
-        x = self.res5(x)
         x = self.attnEnc(x)
         # scale->res->down->res->down->res->down->res->reshape->res->attn->out
         mean = self.to_mean(x)
@@ -56,20 +51,17 @@ class Decoder(nn.Module):
     def __init__(self, latent_channels=4, dropout=0.0):
         super(Decoder, self).__init__()
 
-        self.initial = nn.Conv2d(latent_channels, 256, 1) # 256 x 32 x 32
-        self.attnDec = ac.MultiHeadSelfAttention(256, 8)
+        self.initial = nn.Conv2d(latent_channels, 128, 1) # 256 x 32 x 32
+        self.attnDec = ac.MultiHeadSelfAttention(128, 8)
 
-        self.res1 = nc.NVAEResBlocks(2, 256, 256)
-        self.reshape_channels = nn.ConvTranspose2d(256, 128, 1) # 128 x 32 x 32
-
-        self.res2 = nc.NVAEResBlocks(3, 128, 128) # 128 x 32 x 32
+        self.res2 = nc.NVAEResBlocks(2, 128, 128) # 128 x 32 x 32
         self.up2 = nn.ConvTranspose2d(128, 64, 2, 2) # 64 x 64 x 64
 
-        self.res3 = nc.NVAEResBlocks(5, 64, 64) # 64 x 64 x 64
+        self.res3 = nc.NVAEResBlocks(3, 64, 64) # 64 x 64 x 64
         self.up3 = nn.ConvTranspose2d(64, 32, 2, 2)  # 32 x 128 x 128
 
         self.res4 = nc.NVAEResBlocks(3, 32, 32)  # 32 x 128 x 128
-        self.up4 = nn.ConvTranspose2d(23, 16, 2, 2)  # 16 x 256 x 256
+        self.up4 = nn.ConvTranspose2d(32, 16, 2, 2)  # 16 x 256 x 256
 
         self.res5 = nc.NVAEResBlocks(2, 16, 16)
         self.out = nn.Conv2d(16, 3, 3, 1, 1) # 3 x 256 x 256
@@ -77,8 +69,6 @@ class Decoder(nn.Module):
     def forward(self, x):
         x = self.initial(x)
         x = self.attnDec(x)
-        x = self.res1(x)
-        x = self.reshape_channels(x)
         x = self.res2(x)
         x = self.up2(x)
         x = self.res3(x)

@@ -22,6 +22,7 @@ sample_scaling = 1
 time_emb_dim = 128
 label_emb_dim = 256
 latent_dim = 16
+num_classes = 74
 
 cpu = torch.device('cpu')
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -29,12 +30,13 @@ with open('DataJsons/idx2class.json', 'r') as file:
     idx2class = json.load(file)
 
 vae = VAE(8)
-unet = UNET(time_emb_dim, label_emb_dim, 100, starting_scale=16)
+unet = UNET(time_emb_dim, label_emb_dim, num_classes, starting_scale=16)
 ema = ExponentialMovingAverage(unet.parameters(), decay=0.9999)
 
-vae.load_state_dict(torch.load("PTFiles/attn_vae_64x64.pt", map_location=device))
+vae.load_state_dict(torch.load("PTFiles/cleaned_vae.pt", map_location=device))
 
-checkpoint = torch.load("PTFiles/new_decoder_unetref.pt", map_location=device)
+# checkpoint = torch.load("PTFiles/cleaned_unet.pt", map_location=device)
+checkpoint = torch.load("PTFiles/cleaned_unet_steps.pt", map_location=device)
 unet.load_state_dict(checkpoint['model'])
 ema.load_state_dict(checkpoint['ema'])
 
@@ -132,7 +134,7 @@ def denoise_step_by_step(latent, unet, alphas, betas, alpha_bars, time_encodings
             image_references.append(ref)
 
     plt.tight_layout()
-    plt.pause(0.001)
+    plt.pause(0.01)
     plot_real_mushrooms(label)
 
     with torch.no_grad():
@@ -185,7 +187,7 @@ def plot_final_result():
             samp = latent_means + latent_stds * sample_scaling * torch.randn((rows*cols, 8, latent_dim, latent_dim), device=device)
             # samp = torch.randn((rows*cols, 8, 8, 8), device=device)
 
-            labels = torch.randint(0,1,(rows*cols,), device=device)
+            labels = torch.randint(1,2,(rows*cols,), device=device)
 
             denoised = denoise_latent(samp, unet, labels, alphas, betas, alpha_bars, time_encodings, denoise_steps)
 
@@ -210,7 +212,7 @@ def plot_denoising_animation():
         bs = rows * cols
         samp = latent_means + latent_stds * sample_scaling * torch.randn((rows * cols, 8, latent_dim, latent_dim), device=device)
 
-        labels = torch.randint(1, 2, (bs,), device=device)
+        labels = torch.randint(0, num_classes, (bs,), device=device)
 
         #latent, unet, alphas, betas, alpha_bars, time_encodings, total_noise_steps, label
         denoise_step_by_step(samp, unet, alphas, betas, alpha_bars, time_encodings, num_time_steps, labels)

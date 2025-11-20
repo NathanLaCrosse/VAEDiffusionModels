@@ -65,7 +65,8 @@ class Decoder(nn.Module):
         x = self.res2(x)
         x = self.up2(x)
         x = self.res3(x)
-        return F.tanh(self.out(x)) # force output to be between -1 & 1
+        # return F.tanh(self.out(x)) # force output to be between -1 & 1
+        return torch.clamp(self.out(x), -1, 1)
 
 
 class VAE(nn.Module):

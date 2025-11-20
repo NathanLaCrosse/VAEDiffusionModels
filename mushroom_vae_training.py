@@ -8,11 +8,13 @@ from tqdm import tqdm
 import mushroomdata
 from VAE_128 import VAE
 import lpips
+import unet as u
 
 
 def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, percep_mult=1, save_file="mushroom_vae.pt", load_file=None, latent_channels=4, mse_mode=False):
     #Load the picture data
-    dataset = mushroomdata.MushroomData("DataJsons/traindirs.json", mse_mode=mse_mode)
+    # dataset = mushroomdata.MushroomData("DataJsons/traindirs.json", mse_mode=mse_mode)
+    dataset = mushroomdata.MushroomData("DataJsons/combineddirs.json", True, "MushroomData/")
     dataloader = DataLoader(dataset, batch_size, shuffle=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -66,7 +68,31 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, p
             torch.save(model.state_dict(), f"PTFiles/inprogress{epoch}{save_file}")
     torch.save(model.state_dict(), f"PTFiles/{save_file}")
 
+    return model
+
 if __name__ == '__main__':
+    epochs = 75
+    batch_size = 64
+    # train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.00001, percep_mult=0.05, save_file="attn_vae1.pt", load_file=None, latent_channels=8, mse_mode=True)
+    # train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.00001, percep_mult=0.01, save_file="attn_vae2.pt", load_file=None, latent_channels=8, mse_mode=True)
+    # train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.00001, percep_mult=0.005, save_file="attn_vae3.pt",load_file=None, latent_channels=8, mse_mode=True)
+    # train_nn(epochs, batch_size, lr=0.005, num_periods=6, beta_mult=0.0001, percep_mult=0.05, save_file="attn_vae_largerlr.pt", load_file=None, latent_channels=8, mse_mode=True)
+    vae = train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.00001, percep_mult=0.05, save_file="cleaned_vae.pt", load_file=None, latent_channels=8, mse_mode=True)
+
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # vae_model = VAE(latent_channels=8)
+    # vae_model.load_state_dict(torch.load("PTFiles/cleaned_vae.pt", map_location=device))
+    # vae_model = vae_model.to(device=device)
+    # vae_model.eval()
+    # vae = vae_model
+
+    u.train_unet(epochs=100, batch_size=64, file_base="cleaned_unet.pt", num_time_steps=200, learning_rate=1e-4,
+               dropout=0, previous_epochs=0, vae_file=None, latent_width=16, load_file=None, given_vae=vae, num_classes=74)
+    u.train_unet(epochs=150, batch_size=64, file_base="cleaned_unet_steps.pt", num_time_steps=1000, learning_rate=1e-4,
+               dropout=0, previous_epochs=0, vae_file=None, latent_width=16, load_file=None, given_vae=vae, num_classes=74)
+    
+    vae = train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.000001, percep_mult=0.05, save_file="cleaned_vae_smolbeta.pt", load_file=None, latent_channels=8, mse_mode=True)
+
     epochs = 100
     batch_size = 16
     train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.00001, percep_mult=0.01, save_file="vae_256.pt", load_file=None, latent_channels=4, mse_mode=True)

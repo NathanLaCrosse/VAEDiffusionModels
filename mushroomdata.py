@@ -54,13 +54,15 @@ def generate_train_test_split(data_dir="MushroomData/", train_prop=0.8, prefix="
 
 
 class MushroomData(Dataset):
-    def __init__(self, json_file, mse_mode=False):
+    def __init__(self, json_file, mse_mode=False, prefix=""):
         super(MushroomData, self).__init__()
 
         self.mse_mode = mse_mode
 
         with open(json_file, 'r') as file:
             self.data = json.load(file)
+
+        self.prefix = prefix
 
         # self.data = self.data[:1000]
 
@@ -70,7 +72,7 @@ class MushroomData(Dataset):
     def __getitem__(self, item):
         path, label = self.data[item]
 
-        im = cv2.imread(path)[:,:,::-1]
+        im = cv2.imread(self.prefix + path)[:,:,::-1]
         im = im / 255  # Scale to be in [0, 1]
         if self.mse_mode:
             im = im * 2 - 1 # Scale to be in [-1, 1]
@@ -80,43 +82,56 @@ class MushroomData(Dataset):
 
     def get_clean(self, item):
         path, label = self.data[item]
-        return cv2.imread(path)[:,:,::-1], label
+        return cv2.imread(self.prefix + path)[:,:,::-1], label
 
 if __name__ == "__main__":
-    smol, _ = generate_train_test_split(data_dir="MushroomData/", train_prop=1, prefix="sixtyfour")
-    big, _ = generate_train_test_split(data_dir="CleanedData/", train_prop=1, prefix="twofiftysix")
-
-    collected = []
-    print("Collecting...")
-
-    big_dict = {}
-    for i in range(len(big)):
-        big_dict[big[i][0]] = i
-
-    for key, val in smol:
-        file_name = "CleanedData/" + key[13:]
-
-        found = False
-        # for i in range(len(big)):
-        #     if val == big[i][1]:
-        #         found = True
-        #         break
-        try:
-            found = big_dict[file_name] is not None
-        except:
-            pass
-
-        if found:
-            collected.append(key[13:])
-
-    with open(f"DataJsons/combineddirs.json", 'w') as file:
-        json.dump(collected, file)
-
-    print(len(collected))
-
-    # dat = MushroomData("DataJsons/traindirs.json")
+    # smol, _ = generate_train_test_split(data_dir="MushroomData/", train_prop=1, prefix="sixtyfour")
+    # big, _ = generate_train_test_split(data_dir="CleanedData/", train_prop=1, prefix="twofiftysix")
     #
-    # for i in range(len(dat)):
-    #     plt.imshow(dat.get_clean(np.random.randint(0, len(dat)))[0])
-    #     plt.show()
+    # collected = []
+    # print("Collecting...")
+    #
+    # big_dict = {}
+    # for i in range(len(big)):
+    #     big_dict[big[i][0]] = i
+    #
+    # for key, val in smol:
+    #     file_name = "CleanedData/" + key[13:]
+    #
+    #     found = False
+    #     try:
+    #         found = big_dict[file_name] is not None
+    #     except:
+    #         pass
+    #
+    #     if found:
+    #         collected.append([key[13:], val])
+    #
+    # # We want to convert indices to something continuous.
+    # map = {}
+    #
+    # increment = 0
+    # for i in range(len(collected)):
+    #     val = collected[i][1]
+    #
+    #     if val not in map.keys():
+    #         map[val] = increment
+    #         increment += 1
+    #
+    # for i in range(len(collected)):
+    #     collected[i][1] = map[collected[i][1]]
+    #
+    # with open(f"DataJsons/cleaningshift.json", 'w') as file:
+    #     json.dump(map, file)
+    #
+    # with open(f"DataJsons/combineddirs.json", 'w') as file:
+    #     json.dump(collected, file)
+    #
+    # print(len(collected))
+
+    dat = MushroomData("DataJsons/combineddirs.json", True, "MushroomData/")
+
+    for i in range(len(dat)):
+        plt.imshow(dat.get_clean(np.random.randint(0, len(dat)))[0])
+        plt.show()
 

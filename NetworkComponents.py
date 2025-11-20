@@ -162,6 +162,29 @@ def positional_encoding(seq_len, dim):
     pos_enc[:, 1::2] = torch.cos(angles[:, 1::2])  # apply cos to odd indices
     return pos_enc
 
+def two_dimensional_positional_encoding(im_rows, im_cols, encoding_dim):
+    seq_len = im_rows * im_cols
+    rows = torch.arange(seq_len) # Shape (seq_len) -> [0, 1, ..., seq_len-1]
+    rows = (rows / im_cols).floor().unsqueeze(1) # (seq_len, 1)
+
+    cols = torch.tile(torch.arange(im_cols), (im_rows,)).unsqueeze(1) # Shape (seq_len, 1)
+
+    i = torch.arange(encoding_dim).unsqueeze(0) # Shape: (1, encoding_dim)
+    omega = 1 / torch.pow(10000, (2 * (i // 2)) / encoding_dim) # Shape: (1, encoding_dim)
+
+    row_angles = rows * omega
+    col_angles = cols * omega
+
+    pos_enc = torch.zeros(seq_len, encoding_dim)
+    midpoint = encoding_dim // 2
+
+    pos_enc[:, 0:midpoint:2] = torch.sin(row_angles[:, 0:midpoint:2])
+    pos_enc[:, 1:midpoint:2] = torch.cos(row_angles[:, 1:midpoint:2])
+    pos_enc[:, midpoint::2] = torch.sin(col_angles[:, 0:midpoint:2])
+    pos_enc[:, midpoint+1::2] = torch.cos(col_angles[:, 1:midpoint:2])
+
+    return pos_enc
+
 
 class UNetLayer(nn.Module):
 
@@ -215,26 +238,40 @@ class WeirdSelfAttention(nn.Module):
         return x + self.conv_out(out)
 
 class VAEResnetBlock(nn.Module):
-    def __init__(self, in_channels, out_channels=None):
+    def __init__(self, in_channels, out_channels=None, isDownScaling=False, isUpscaling=False):
         super().__init__()
 
+        #This is here to make sure groups line up for GroupNorm if we go to small channel sizes
         numgroups = min(16, in_channels)
-
         self.norm1 = nn.GroupNorm(numgroups, in_channels)
-        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
+
+
+        if isDownScaling:
+            self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, stride=2)
+        elif isUpscaling:
+            self.conv1 = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=4, stride=2)
+        else:
+            self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
+
         self.norm2 = nn.GroupNorm(numgroups, out_channels)
         self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1)
 
-        if in_channels != out_channels:
-            self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1)
+        #checking for up sampling or down sampling
+        if isDownScaling:
+            self.skip = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=2)
+        elif isUpscaling:
+            self.skip = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=4, stride=2, padding=1)
         else:
-            self.shortcut = nn.Identity()
+            if in_channels != out_channels:
+                self.skip = nn.Conv2d(in_channels, out_channels, kernel_size=1)
+            else:
+                self.skip = nn.Identity()
 
     def forward(self, x):
-        y = self.conv1(F.silu(self.norm1(x)))
-        y = self.conv2(F.silu(self.norm2(y)))
+        res = self.conv1(F.silu(self.norm1(x)))
+        res = self.conv2(F.silu(self.norm2(res)))
 
-        return self.shortcut(x) + y
+        return self.skip(x) + res
 
 class NVAEResBlocks(nn.Module):
 

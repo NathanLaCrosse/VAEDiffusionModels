@@ -6,11 +6,11 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 import mushroomdata
-from VAE_256 import VAE
+from Matt_VAE import VAE
 import lpips
 
 
-def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, percep_mult=1, save_file="attn_vae_256x256.pt", load_file=None, latent_channels=4, mse_mode=False):
+def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, percep_mult=1, save_file="mushroom_vae.pt", load_file=None, latent_channels=4, mse_mode=False):
     #Load the picture data
     dataset = mushroomdata.MushroomData("DataJsons/traindirs.json", mse_mode=mse_mode)
     dataloader = DataLoader(dataset, batch_size, shuffle=True)
@@ -42,14 +42,14 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, p
             beta = beta_multiplier * np.sin(np.pi * (batch_idx % period_length) / period_length)
 
             optimizer.zero_grad()
-            with torch.cuda.amp.autocast():
-                outputs, KL_div = model(images)
-                # Loss consists of three terms - reconstruction, perceptual, KL-divergence
-                r_loss = reconstruction_loss(outputs, images)
-                p_loss = percep_loss(outputs, images).mean()
-                k_loss = KL_div
+            outputs, KL_div = model(images)
 
-                loss = r_loss + p_loss * percep_mult + k_loss * beta
+            # Loss consists of three terms - reconstruction, perceptual, KL-divergence
+            r_loss = reconstruction_loss(outputs, images)
+            p_loss = percep_loss(outputs, images).mean()
+            k_loss = KL_div
+
+            loss = r_loss + p_loss * percep_mult + k_loss * beta
             loss.backward()
             optimizer.step()
 
@@ -62,14 +62,18 @@ def train_nn(epochs=15, batch_size=32, lr=0.001, num_periods=5, beta_mult=0.1, p
                 'Beta' : beta
             })
 
-        if (epoch+1) % 10 == 0:
+        if (epoch+1) % 25 == 0:
             torch.save(model.state_dict(), f"PTFiles/inprogress{epoch}{save_file}")
     torch.save(model.state_dict(), f"PTFiles/{save_file}")
 
 if __name__ == '__main__':
     epochs = 100
-    batch_size = 16
-    train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.00001, percep_mult=0.01, save_file="attn_vae_256_smaller.pt", load_file=None, latent_channels=4, mse_mode=True)
+    batch_size = 64
+    train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.00001, percep_mult=0.05, save_file="attn_vae1.pt", load_file=None, latent_channels=8, mse_mode=True)
+    train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.00001, percep_mult=0.01, save_file="attn_vae2.pt", load_file=None, latent_channels=8, mse_mode=True)
+    train_nn(epochs, batch_size, lr=0.001, num_periods=6, beta_mult=0.00001, percep_mult=0.005, save_file="attn_vae3.pt",load_file=None, latent_channels=8, mse_mode=True)
+    train_nn(epochs, batch_size, lr=0.005, num_periods=6, beta_mult=0.0001, percep_mult=0.05, save_file="attn_vae_largerlr.pt", load_file=None, latent_channels=8, mse_mode=True)
+    train_nn(epochs, batch_size, lr=0.0001, num_periods=6, beta_mult=0.00001, percep_mult=0.05, save_file="attn_vae_smalllr.pt", load_file=None, latent_channels=8, mse_mode=True)
 
 
 

@@ -15,10 +15,11 @@ model = VAE(latent_channels=latent_channels)
 mse_mode = True
 
 
-name = "attn_vae_64x64"
+name = "cleaned_vae"
 model.load_state_dict(torch.load(f"PTfiles/{name}.pt", map_location=torch.device('cpu')))
 
-train_dat = mushroomdata.MushroomData(json_file="DataJsons/traindirs.json", mse_mode=mse_mode)
+# train_dat = mushroomdata.MushroomData(json_file="DataJsons/traindirs.json", mse_mode=mse_mode)
+train_dat = mushroomdata.MushroomData("DataJsons/combineddirs.json", True, "MushroomData/")
 batch_size = 128
 
 with torch.no_grad():

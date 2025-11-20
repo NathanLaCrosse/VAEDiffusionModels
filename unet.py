@@ -107,16 +107,20 @@ from torch.utils.data import WeightedRandomSampler
 
 def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps = 1000, file_base = "unet.pt",
                vae_file = "PTFiles/largernorm3.pt", vae_latent_channels=8, dropout=0.0, load_file=None, previous_epochs=0,
-               warmup_steps=2500, latent_width = 8):
-    dataset = mushroomdata.MushroomData("DataJsons/traindirs.json")
+               warmup_steps=2500, latent_width = 8, given_vae=None, num_classes=100):
+    # dataset = mushroomdata.MushroomData("DataJsons/traindirs.json")
+    dataset = mushroomdata.MushroomData("DataJsons/combineddirs.json", True, "MushroomData/")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using {device}.")
-
-    vae_model = VAE(latent_channels=vae_latent_channels)
-    vae_model.load_state_dict(torch.load(vae_file, map_location=device))
-    vae_model = vae_model.to(device=device)
-    vae_model.eval()
+    
+    if given_vae is None:
+        vae_model = VAE(latent_channels=vae_latent_channels)
+        vae_model.load_state_dict(torch.load(vae_file, map_location=device))
+        vae_model = vae_model.to(device=device)
+        vae_model.eval()
+    else:
+        vae_model = given_vae.eval()
 
     # Parameter freeze - incredibly important!!!
     for p in vae_model.parameters():
@@ -137,7 +141,7 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
     # betas, alphas, alpha_bars = cosine_beta_schedule(num_time_steps)
     # alpha_bars = alpha_bars.to(device)
 
-    unet_model = UNET(128, 256, 100, dropout_p=dropout, starting_scale=16).to(device)
+    unet_model = UNET(128, 256, num_classes, dropout_p=dropout, starting_scale=16).to(device)
     ema = ExponentialMovingAverage(unet_model.parameters(), decay=0.9999)
     ema.to(device)
 

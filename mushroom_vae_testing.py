@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 latent_options = [8]
 state_dicts = [
-    "PTFiles/attn_vae_64x64.pt"
+    "PTFiles/cleaned_vae.pt"
 ]
 
 models = [
@@ -21,7 +21,8 @@ for i in range(len(latent_options)):
     models[i].load_state_dict(torch.load(state_dicts[i], map_location=torch.device('cpu')))
     models[i] = models[i].eval()
 
-dat = mushroomdata.MushroomData("DataJsons/testdirs.json", mse_mode=True)
+# dat = mushroomdata.MushroomData("DataJsons/testdirs.json", mse_mode=True)
+dat = mushroomdata.MushroomData("DataJsons/combineddirs.json", True, "MushroomData/")
 
 with torch.no_grad():
     for im, label in dat:
@@ -31,7 +32,7 @@ with torch.no_grad():
             preds[i] = (models[i](im.view(1,3,64,64))[0][0] + 1) / 2
             preds[i] = preds[i].permute(1, 2, 0)
 
-            latent = models[i].forward_encode_only(im.view(1,3,64,64))
+            latent = models[i].forward_encode_only_mean(im.view(1,3,64,64))
             print(latent.mean().item(), latent.std().item())
 
         im = (im + 1) / 2

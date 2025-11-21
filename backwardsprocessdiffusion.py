@@ -61,8 +61,8 @@ latent_means = stats['means'].to(device).view(1, 8, latent_dim, latent_dim)
 latent_stds = stats['stds'].to(device).view(1, 8, latent_dim, latent_dim)
 
 #Graph components
-rows = 7
-cols = 7
+rows = 3
+cols = 3
 
 
 # Method to decode latent -> formula from class
@@ -187,7 +187,7 @@ def plot_final_result():
             samp = latent_means + latent_stds * sample_scaling * torch.randn((rows*cols, 8, latent_dim, latent_dim), device=device)
             # samp = torch.randn((rows*cols, 8, 8, 8), device=device)
 
-            labels = torch.randint(1,2,(rows*cols,), device=device)
+            labels = torch.randint(0,70,(rows*cols,), device=device)
 
             denoised = denoise_latent(samp, unet, labels, alphas, betas, alpha_bars, time_encodings, denoise_steps)
 

@@ -12,9 +12,10 @@ import matplotlib.pyplot as plt
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 vae = VAE(8)
-vae.load_state_dict(torch.load("PTFiles/attn_vae_64x64.pt", map_location=device))
+vae.load_state_dict(torch.load("PTFiles/cleaned_vae.pt", map_location=device))
 vae = vae.to(device).eval()
-dat = mushroomdata.MushroomData("DataJsons/testdirs.json", mse_mode=True)
+# dat = mushroomdata.MushroomData("DataJsons/testdirs.json", mse_mode=True)
+dat = mushroomdata.MushroomData("DataJsons/combineddirs.json", True, "MushroomData/")
 
 batch_size = 32
 dat_loader = DataLoader(dat, batch_size=batch_size)

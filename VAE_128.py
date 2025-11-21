@@ -12,10 +12,10 @@ class Encoder(nn.Module):
         self.res1 = nc.NVAEResBlocks(2, 32, 32)
         self.down1 = nc.VAEResnetBlock(32, 64, True, False)  # 64 x 64 x 64
 
-        self.res2 = nc.NVAEResBlocks(3,64, 64)
+        self.res2 = nc.NVAEResBlocks(2,64, 64)
         self.down2 = nc.VAEResnetBlock(64, 128, True, False) # 128x32x32
 
-        self.res3 = nc.NVAEResBlocks(3, 128, 128)
+        self.res3 = nc.NVAEResBlocks(2, 128, 128)
 
         self.to_mean = nn.Conv2d(128, latent_channels, 1) #latent channels x32x32
         self.to_logvar = nn.Conv2d(128, latent_channels, 1)
@@ -27,8 +27,8 @@ class Encoder(nn.Module):
         x = self.res2(x)
         x = self.down2(x)
         x = self.res3(x)
-        x = self.down3(x)
-        x = self.res4(x)
+        # x = self.down3(x)
+        # x = self.res4(x)
         mean = self.to_mean(x)
         logvar = self.to_logvar(x)
 
@@ -46,10 +46,10 @@ class Decoder(nn.Module):
 
         self.initial = nn.Conv2d(latent_channels, 128, 1) # 128 x 32 x 32
 
-        self.res2 = nc.NVAEResBlocks(3, 128, 128) # 128 x 32 x 32
+        self.res2 = nc.NVAEResBlocks(2, 128, 128) # 128 x 32 x 32
         self.up2 = nc.VAEResnetBlock(128, 64, False, True) # 64 x 64 x 64
 
-        self.res3 = nc.NVAEResBlocks(3, 64, 64)  # 32 x 64 x 64
+        self.res3 = nc.NVAEResBlocks(2, 64, 64)  # 32 x 64 x 64
         self.up3 = nc.VAEResnetBlock(64, 32, False, True) # 16 x 128 x 128
 
         self.res4 = nc.NVAEResBlocks(2, 32, 32)
@@ -57,8 +57,8 @@ class Decoder(nn.Module):
 
     def forward(self, x):
         x = self.initial(x)
-        x = self.res1(x)
-        x = self.up1(x)
+        # x = self.res1(x)
+        # x = self.up1(x)
         x = self.res2(x)
         x = self.up2(x)
         x = self.res3(x)

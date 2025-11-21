@@ -249,7 +249,7 @@ class VAEResnetBlock(nn.Module):
         if isDownScaling:
             self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, stride=2)
         elif isUpscaling:
-            self.conv1 = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=4, stride=2)
+            self.conv1 = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=4, stride=2, padding=1)
         else:
             self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
 

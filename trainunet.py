@@ -49,7 +49,7 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
         alpha_bars[i] = alphas[i] * alpha_bars[i-1]
 
     # unet_model = UNET(128, 256, num_classes, dropout_p=dropout, starting_scale=16).to(device)
-    unet_model = GeneralizedUNet(128, 256, num_classes, down_passes)
+    unet_model = GeneralizedUNet(128, 256, num_classes, down_passes).to(device)
     ema = ExponentialMovingAverage(unet_model.parameters(), decay=0.9999)
     ema.to(device)
 

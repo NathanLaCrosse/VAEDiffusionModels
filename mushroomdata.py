@@ -54,10 +54,11 @@ def generate_train_test_split(data_dir="MushroomData/", train_prop=0.8, prefix="
 
 
 class MushroomData(Dataset):
-    def __init__(self, json_file, mse_mode=False, prefix=""):
+    def __init__(self, json_file, mse_mode=False, prefix="", halve=False):
         super(MushroomData, self).__init__()
 
         self.mse_mode = mse_mode
+        self.halve = halve
 
         with open(json_file, 'r') as file:
             self.data = json.load(file)
@@ -73,6 +74,10 @@ class MushroomData(Dataset):
         path, label = self.data[item]
 
         im = cv2.imread(self.prefix + path)[:,:,::-1]
+
+        if self.halve:
+            im = cv2.resize(im, (im.shape[0]//2, im.shape[1]//2), interpolation=cv2.INTER_AREA)
+
         im = im / 255  # Scale to be in [0, 1]
         if self.mse_mode:
             im = im * 2 - 1 # Scale to be in [-1, 1]

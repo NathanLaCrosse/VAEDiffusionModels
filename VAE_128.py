@@ -83,6 +83,6 @@ class VAE(nn.Module):
     def forward_decode_only(self, x):
         return self.decoder(x)
 
-    def forward_encode_only(self, x):
+    def forward_encode_only_mean(self, x):
         x, _ = self.encoder(x)
         return x

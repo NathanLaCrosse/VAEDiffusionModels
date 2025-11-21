@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import NetworkComponents as nc
 import mushroomdata
-from unet import UNET
+from trainunet import UNET
 from Matt_VAE import VAE
 import matplotlib.pyplot as plt
 from torch_ema import ExponentialMovingAverage
@@ -141,13 +141,6 @@ def denoise_step_by_step(latent, unet, alphas, betas, alpha_bars, time_encodings
         with ema.average_parameters():
             while t > 0:
                 title.set_text(f"Denoising Step: {t}")
-                # step_vect = time_encodings[t - 1].unsqueeze(0).expand(bs, time_emb_dim).to(device)
-                # noise = unet(pred, step_vect, label)
-                # pred = 1 / torch.sqrt(alphas[t - 1]) * (
-                #         pred - betas[t - 1] / torch.sqrt(1 - alpha_bars[t - 1]) * noise
-                # )
-                # if t > 1:
-                #     pred = pred + torch.sqrt(betas[t - 1]) * torch.randn_like(pred)
 
                 step_vect = time_encodings[t - 1].unsqueeze(0).expand(bs, time_emb_dim)
 
@@ -218,5 +211,5 @@ def plot_denoising_animation():
         denoise_step_by_step(samp, unet, alphas, betas, alpha_bars, time_encodings, num_time_steps, labels)
 
 
-# plot_denoising_animation()
-plot_final_result()
+plot_denoising_animation()
+# plot_final_result()

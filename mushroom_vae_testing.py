@@ -6,13 +6,14 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 import mushroomdata
-from Matt_VAE import VAE
+from VAE_128 import VAE
 import matplotlib.pyplot as plt
 
-latent_options = [8]
+latent_options = [4]
 state_dicts = [
-    "PTFiles/cleaned_vae.pt"
+    "PTFiles/vae_128.pt"
 ]
+im_size = 128
 
 models = [
     VAE(latent_channels=latent_options[i]) for i in range(len(latent_options))
@@ -22,17 +23,17 @@ for i in range(len(latent_options)):
     models[i] = models[i].eval()
 
 # dat = mushroomdata.MushroomData("DataJsons/testdirs.json", mse_mode=True)
-dat = mushroomdata.MushroomData("DataJsons/combineddirs.json", True, "MushroomData/")
+dat = mushroomdata.MushroomData("DataJsons/combineddirs.json", True, "CleanedData/", halve=True)
 
 with torch.no_grad():
     for im, label in dat:
         preds = [None for i in range(len(latent_options))]
 
         for i in range(len(latent_options)):
-            preds[i] = (models[i](im.view(1,3,64,64))[0][0] + 1) / 2
+            preds[i] = (models[i](im.view(1,3,im_size,im_size))[0][0] + 1) / 2
             preds[i] = preds[i].permute(1, 2, 0)
 
-            latent = models[i].forward_encode_only_mean(im.view(1,3,64,64))
+            latent = models[i].forward_encode_only_mean(im.view(1,3,im_size,im_size))
             print(latent.mean().item(), latent.std().item())
 
         im = (im + 1) / 2

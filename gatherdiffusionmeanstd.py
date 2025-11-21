@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import NetworkComponents as nc
 import mushroomdata
-from unet import UNET
+from trainunet import UNET
 from Matt_VAE import VAE
 import matplotlib.pyplot as plt
 

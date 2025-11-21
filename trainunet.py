@@ -21,7 +21,9 @@ from UNetArchitecture import GeneralizedUNet
 def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps = 1000, file_base = "unet.pt",
                vae_file = "PTFiles/largernorm3.pt", vae_latent_channels=8, dropout=0.0, load_file=None, previous_epochs=0,
                warmup_steps=2500, latent_width = 8, given_vae=None, num_classes=100, down_passes=4):
-    dataset = mushroomdata.MushroomData("DataJsons/combineddirs.json", True, "MushroomData/")
+    # dataset = mushroomdata.MushroomData("DataJsons/combineddirs.json", True, "MushroomData/")
+    # dataset = mushroomdata.MushroomData("DataJsons/combineddirs.json", True, "MushroomData/")
+    dataset = mushroomdata.MushroomData("DataJsons/combineddirs.json", True, "CleanedData/", halve=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using {device}.")

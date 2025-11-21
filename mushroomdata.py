@@ -87,7 +87,13 @@ class MushroomData(Dataset):
 
     def get_clean(self, item):
         path, label = self.data[item]
-        return cv2.imread(self.prefix + path)[:,:,::-1], label
+
+        im = cv2.imread(self.prefix + path)[:,:,::-1]
+
+        if self.halve:
+            im = cv2.resize(im, (im.shape[0]//2, im.shape[1]//2), interpolation=cv2.INTER_AREA)
+
+        return im, label
 
 if __name__ == "__main__":
     # smol, _ = generate_train_test_split(data_dir="MushroomData/", train_prop=1, prefix="sixtyfour")
@@ -134,7 +140,8 @@ if __name__ == "__main__":
     #
     # print(len(collected))
 
-    dat = MushroomData("DataJsons/combineddirs.json", True, "MushroomData/")
+    # dat = MushroomData("DataJsons/combineddirs.json", True, "MushroomData/")
+    dat = MushroomData("DataJsons/combineddirs.json", True, "CleanedData/", halve=True)
 
     for i in range(len(dat)):
         plt.imshow(dat.get_clean(np.random.randint(0, len(dat)))[0])

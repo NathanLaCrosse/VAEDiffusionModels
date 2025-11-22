@@ -6,23 +6,24 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import NetworkComponents as nc
 import mushroomdata
-from trainunet import UNET
-from Matt_VAE import VAE
+from UNetArchitecture import GeneralizedUNet
+from VAE_128 import VAE
 import matplotlib.pyplot as plt
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-vae = VAE(8)
-vae.load_state_dict(torch.load("PTFiles/cleaned_vae.pt", map_location=device))
+vae = VAE(4)
+vae.load_state_dict(torch.load("PTFiles/vae_128.pt", map_location=device))
 vae = vae.to(device).eval()
 # dat = mushroomdata.MushroomData("DataJsons/testdirs.json", mse_mode=True)
-dat = mushroomdata.MushroomData("DataJsons/combineddirs.json", True, "MushroomData/")
+# dat = mushroomdata.MushroomData("DataJsons/combineddirs.json", True, "MushroomData/")
+dat = mushroomdata.MushroomData("DataJsons/combineddirs.json", True, "CleanedData/", halve=True)
 
-batch_size = 32
+batch_size = 128
 dat_loader = DataLoader(dat, batch_size=batch_size)
-dim = 16
+dim = 32
 
-means = torch.zeros((8,dim,dim), device=device) # means over channels
-stds = torch.zeros((8,dim,dim), device=device) # means over stds
+means = torch.zeros((4,dim,dim), device=device) # means over channels
+stds = torch.zeros((4,dim,dim), device=device) # means over stds
 
 count = 0
 with torch.no_grad():

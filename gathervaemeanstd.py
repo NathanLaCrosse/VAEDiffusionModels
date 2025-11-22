@@ -6,16 +6,19 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import NetworkComponents as nc
 import mushroomdata
-from UNetArchitecture import GeneralizedUNet
 from VAE_128 import VAE
 import matplotlib.pyplot as plt
+
+"""
+This file is designed to compute average mean and standard deviations of every single
+latent "distribution" in a vae's latent space. This data is used to determine the best
+distribution to sample from when generating images.
+"""
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 vae = VAE(4)
 vae.load_state_dict(torch.load("PTFiles/vae_128.pt", map_location=device))
 vae = vae.to(device).eval()
-# dat = mushroomdata.MushroomData("DataJsons/testdirs.json", mse_mode=True)
-# dat = mushroomdata.MushroomData("DataJsons/combineddirs.json", True, "MushroomData/")
 dat = mushroomdata.MushroomData("DataJsons/combineddirs.json", True, "CleanedData/", halve=True)
 
 batch_size = 128

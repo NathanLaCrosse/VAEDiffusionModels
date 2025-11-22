@@ -10,10 +10,15 @@ from Matt_VAE import VAE
 import matplotlib.pyplot as plt
 import os
 
+"""
+This code samples from a VAE's latent space to determine whether or not the space is good
+enough for generation. Expected results should have splotches of green, orange and black.
+A feature or two should be recognizable but "melted".
+"""
+
 latent_channels = 8
 model = VAE(latent_channels=latent_channels)
 mse_mode = True
-
 
 name = "cleaned_vae"
 model.load_state_dict(torch.load(f"PTfiles/{name}.pt", map_location=torch.device('cpu')))

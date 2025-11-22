@@ -66,8 +66,8 @@ latent_means = stats['means'].to(device).view(1, latent_channels, latent_dim, la
 latent_stds = stats['stds'].to(device).view(1, latent_channels, latent_dim, latent_dim)
 
 #Graph components
-rows = 3
-cols = 3
+rows = 2
+cols = 2
 
 
 # Method to decode latent -> formula from class

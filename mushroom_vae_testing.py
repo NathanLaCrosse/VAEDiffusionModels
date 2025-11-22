@@ -9,6 +9,13 @@ import mushroomdata
 from VAE_128 import VAE
 import matplotlib.pyplot as plt
 
+"""
+This file is designed to compare the results of inputted vae models. When training a vae
+overnight, we often created a few copies with different hyperparameters, hoping at least
+one of them did not experience posterior collapse. We used this file to determine the
+best ones.
+"""
+
 latent_options = [4]
 state_dicts = [
     "PTFiles/vae_128.pt"
@@ -33,9 +40,11 @@ with torch.no_grad():
             preds[i] = (models[i](im.view(1,3,im_size,im_size))[0][0] + 1) / 2
             preds[i] = preds[i].permute(1, 2, 0)
 
+            # Print latent statistics -> should be about mean 0 std 1
             latent = models[i].forward_encode_only_mean(im.view(1,3,im_size,im_size))
             print(latent.mean().item(), latent.std().item())
 
+        # Results from decoder are between -1 and 1.
         im = (im + 1) / 2
         im = im.permute(1,2,0)
 

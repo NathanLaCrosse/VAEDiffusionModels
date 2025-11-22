@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 class ConvolutionalBlock(nn.Module):
     """
-    Performs two convolution + relu blocks.
+    Performs two convolution + relu blocks. Used in early models.
     """
     def __init__(self, c1, c2, c3, rows, cols, dropout_p=0.0):
         super(ConvolutionalBlock, self).__init__()
@@ -26,7 +26,9 @@ class ConvolutionalBlock(nn.Module):
 
 class BottleneckBlock(nn.Module):
     """
-    Implements a bottleneck block similar to the ones utilized by ResNets
+    Implements a bottleneck block similar to the ones utilized by ResNets. Performs a
+    1x1 convolution, a 3x3 convolution and a final 1x1 convolution. Features SiLU for a
+    activation function and GroupNorm for normalization.
     """
     def __init__(self, initial_channels, bottleneck_channels, dropout_p=0.0):
         super(BottleneckBlock, self).__init__()
@@ -54,7 +56,7 @@ class ResidualBlockWithEmbeddings(nn.Module):
     def __init__(self, initial_channels, bottleneck_channels, im_dim, time_embed_dim=64, label_embed_dim=256, dropout_p=0.0):
         """
         Convolutional Neural Network block that utilizes a residual connection to retain gradients.
-        Incorporates a time and label embedding for use in a diffusion model.
+        Incorporates a time embedding for use in a diffusion model.
 
         :param initial_channels: The initial channels in the input image (output also has initial_channels)
         :param bottleneck_channels: The intermediate channel count when the 3x3 convolution is applied.
@@ -80,15 +82,6 @@ class ResidualBlockWithEmbeddings(nn.Module):
             # nn.SiLU()
         )
 
-        # Similar to the time mlp, this draws out locally important information of out the
-        # global label information
-        # self.label_mlp = nn.Sequential(
-        #     nn.Linear(label_embed_dim, label_embed_dim),
-        #     nn.SiLU(),
-        #     nn.Dropout(dropout_p),
-        #     nn.Linear(label_embed_dim,im_dim**2)
-        # )
-
         self.conv1 = nn.Conv2d(initial_channels, bottleneck_channels, 1)
         self.conv2 = nn.Conv2d(bottleneck_channels, bottleneck_channels, 3, 1, 1)
         self.conv3 = nn.Conv2d(bottleneck_channels, initial_channels, 1)
@@ -109,7 +102,6 @@ class ResidualBlockWithEmbeddings(nn.Module):
 
         # Create local context encodings of t and l
         local_t = self.time_mlp(t_vect)
-        # local_l = self.label_mlp(l_vect).view(batch_size, 1, self.im_dim, self.im_dim).contiguous()
 
         # First convolution
         res = self.norm1(F.silu(self.conv1(x)))
@@ -120,11 +112,7 @@ class ResidualBlockWithEmbeddings(nn.Module):
         res = res + local_t[:, :, None, None]
         res = F.silu(res)
 
-        # Concatenate with label embedding to gain conditionality
-        # res = torch.cat([res, local_l], dim=1)
-
         # Perform the rest of the convolutions
-        # res = self.conv2(res)
         res = self.norm2(F.silu(self.conv3(res)))
 
         if self.dropout_p > 0:
@@ -163,6 +151,11 @@ def positional_encoding(seq_len, dim):
     return pos_enc
 
 def two_dimensional_positional_encoding(im_rows, im_cols, encoding_dim):
+    """
+    Generates a two-dimensional positional encoding of shape (seq_len, dim) using sinusoidal
+    functions. The first half of the vector contains row position information and the
+    second half contains column position information.
+    """
     seq_len = im_rows * im_cols
     rows = torch.arange(seq_len) # Shape (seq_len) -> [0, 1, ..., seq_len-1]
     rows = (rows / im_cols).floor().unsqueeze(1) # (seq_len, 1)
@@ -187,7 +180,12 @@ def two_dimensional_positional_encoding(im_rows, im_cols, encoding_dim):
 
 
 class UNetLayer(nn.Module):
-
+    """
+    A layer of a UNet used in the diffusion models. Performs the following:
+        - 2 Residual Blocks, which apply convolutions with the time embedding.
+        - 1 Cross Attention Block, which allows pixels to talk with the label
+        - 1 Self Attention Block, which allows pixels to talk with each other
+    """
     def __init__(self, channels, im_dim, time_embed_dim, label_embed_dim, dropout_p=0.0):
         super(UNetLayer, self).__init__()
 
@@ -203,6 +201,9 @@ class UNetLayer(nn.Module):
         return self.self_atten(x)
 
 class WeirdSelfAttention(nn.Module):
+    """
+    Legacy form of attention. Unused in final project.
+    """
     def __init__(self, channels):
         super().__init__()
         # Group normalization
@@ -238,6 +239,9 @@ class WeirdSelfAttention(nn.Module):
         return x + self.conv_out(out)
 
 class VAEResnetBlock(nn.Module):
+    """
+    Blocks used in the construction of VAEs used in Matt_VAE.py, VAE_128,py, VAE_256.py
+    """
     def __init__(self, in_channels, out_channels=None, isDownScaling=False, isUpscaling=False):
         super().__init__()
 
@@ -288,13 +292,5 @@ class NVAEResBlocks(nn.Module):
         return x
 
 
-# if __name__ == '__main__':
-#     resblock = ResidualBlockWithEmbeddings(16, 7, 2, 64, 256)
-#
-#     test = torch.randn((3, 16, 2, 2))
-#     t_vect = torch.randn((3,64))
-#     l_vect = torch.randn((3,256))
-#     out = resblock(test, t_vect, l_vect)
-#
-#     print('hi')
+
 

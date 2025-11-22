@@ -6,7 +6,10 @@ import torch.nn.functional as F
 
 class MultiHeadSelfAttention(nn.Module):
     """
-    Implements a self-attention mechanism for use in a convolutional neural network
+    Implements a self-attention mechanism for use in a convolutional neural network.
+    Converts an image of shape (B, C, H, W) into the shape (B, H*W, C) over which
+    a self-attention mechanism is applied. Essentially, this block allows all pixels
+    to talk with each other. Image is then reshaped back.
     """
     def __init__(self, input_channels, heads=4, dropout=0.0):
         super(MultiHeadSelfAttention, self).__init__()
@@ -36,6 +39,12 @@ class MultiHeadSelfAttention(nn.Module):
         return x
 
 class CrossAttention(nn.Module):
+    """
+    Implements a cross-attention mechanism to be applied in a convolutional neural network.
+    An image is converted from the shape (B, C, H, W) to (B, H*W, C), which are projected
+    into queries for the attention mechanism. A label vector of size (B, L) is linearly
+    projected into the key and value vectors. Image is then reshaped back.
+    """
     def __init__(self, channel_count, label_embed_size, num_heads, dropout):
         super(CrossAttention, self).__init__()
         self.pos_cache = None
@@ -72,7 +81,6 @@ class CrossAttention(nn.Module):
     def forward(self, x, label_emb):
         # Inputs
         # X: (B, C, H, W)
-        # L: label - stored as long
         batches, channels, rows, cols = x.size()
 
         # Reshape X: (B, C, H, W) -> (B, H*W, C)

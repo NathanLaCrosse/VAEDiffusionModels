@@ -96,6 +96,12 @@ class MushroomData(Dataset):
         return im, label
 
 if __name__ == "__main__":
+
+    """
+    Below is code used to generate the fully cleaned out dataset. Data was accidentally cleaned across
+    two different folders, so the below code identifies shared files and saves them to a json file.
+    """
+
     # smol, _ = generate_train_test_split(data_dir="MushroomData/", train_prop=1, prefix="sixtyfour")
     # big, _ = generate_train_test_split(data_dir="CleanedData/", train_prop=1, prefix="twofiftysix")
     #

@@ -41,7 +41,7 @@ unet = GeneralizedUNet(time_emb_dim, label_emb_dim, num_classes, 4)
 ema = ExponentialMovingAverage(unet.parameters(), decay=0.9999)
 
 # checkpoint = torch.load("PTFiles/cleaned_unet.pt", map_location=device)
-checkpoint = torch.load("PTFiles/inprogress29unet128.pt", map_location=device)
+checkpoint = torch.load("PTFiles/unet128.pt", map_location=device)
 unet.load_state_dict(checkpoint['model'])
 ema.load_state_dict(checkpoint['ema'])
 

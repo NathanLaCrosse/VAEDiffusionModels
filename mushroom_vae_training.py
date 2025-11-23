@@ -80,8 +80,10 @@ if __name__ == '__main__':
     vae.load_state_dict(torch.load("PTFiles/vae_128.pt", map_location=device))
     vae = vae.eval()
 
-    u.train_unet(epochs=100, batch_size=16, file_base="unet128.pt", num_time_steps=1000, learning_rate=1e-4, vae_latent_channels=4,
-               dropout=0, previous_epochs=3, vae_file=None, latent_width=32, load_file="PTFiles/unet128.pt", given_vae=vae, num_classes=74)
+    # u.train_unet(epochs=100, batch_size=16, file_base="unet128.pt", num_time_steps=1000, learning_rate=1e-4, vae_latent_channels=4,
+    #            dropout=0, previous_epochs=86, vae_file=None, latent_width=32, load_file="PTFiles/unet128.pt", given_vae=vae, num_classes=74)
+    u.train_unet(epochs=200, batch_size=16, file_base="unet128ref.pt", num_time_steps=1000, learning_rate=3e-5, vae_latent_channels=4,
+               dropout=12, previous_epochs=0, vae_file=None, latent_width=32, load_file="PTFiles/unet128ref.pt", given_vae=vae, num_classes=74, warmup_steps=0)
     # 58
     # u.train_unet(epochs=150, batch_size=64, file_base="cleaned_unet_steps.pt", num_time_steps=1000, learning_rate=1e-4,
     #            dropout=0, previous_epochs=0, vae_file=None, latent_width=16, load_file=None, given_vae=vae, num_classes=74)

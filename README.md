@@ -1,4 +1,4 @@
-# Diffushroom: A Stable Diffusion model for Mushrooms
+# Diffushroom: A Stable Diffusion Model for Mushrooms
 Authors: Nathan LaCrosse, Matthew Peplinski, and Jake Swanson
 
 ## Our Project:

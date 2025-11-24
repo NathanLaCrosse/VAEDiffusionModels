@@ -38,8 +38,8 @@ with torch.no_grad():
     model = model.eval()
 
     # Randomly sample from mean and standard deviation
-    rows = 5
-    cols = 5
+    rows = 3
+    cols = 3
     fig, ax = plt.subplots(rows, cols)
     for i in range(rows):
         for j in range(cols):
@@ -50,5 +50,7 @@ with torch.no_grad():
             else:
                 x = (x + 1) / 2
             ax[i, j].imshow(x)
+            ax[i, j].axis('off')
 
+    plt.tight_layout()
     plt.show()

@@ -1,14 +1,17 @@
 # Attempt at Stable Diffusion
 Authors: Nathan LaCrosse, Matthew Peplinski, and Jake Swanson
 
-## Our Project
+## Our Project:
 We attempt to recreate the stable diffusion model from this [paper](https://arxiv.org/abs/2006.11239) by Berkeley University.
 
 We utilize a dataset from [Kaggle](https://www.kaggle.com/datasets/thehir0/mushroom-species) that contains images of mushrooms. There are various different species of mushrooms. This is perfect for being able to utilize the hybridization capabilities of a diffusion model.
 
 ## Architecture:
-The model runs off
+The model runs off of two different base models. A UNet and VAE architecture. The high level overview is the VAE is capable of generating latent vectors of the original images. These latent's are fed into the UNet on a denoising schedule to essentially find a mushroom in random noise.
 
-### Unet
+### UNet:
 
-### VAE
+### VAE:
+
+## Results:
+Below is a sample of the results we got from our model.

@@ -11,23 +11,21 @@ from tqdm import tqdm
 
 import NetworkComponents as nc
 import mushroomdata
-from Matt_VAE import VAE
+from VAE_128 import VAE
 from torch.utils.data import WeightedRandomSampler
 
 from torch_ema import ExponentialMovingAverage
 from UNetArchitecture import GeneralizedUNet
 
 
-def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps = 1000, file_base = "unet.pt",
-               vae_file = "PTFiles/largernorm3.pt", vae_latent_channels=8, dropout=0.0, load_file=None, previous_epochs=0,
-               warmup_steps=2500, latent_width = 8, given_vae=None, num_classes=100, down_passes=4):
-    # dataset = mushroomdata.MushroomData("DataJsons/combineddirs.json", True, "MushroomData/")
-    # dataset = mushroomdata.MushroomData("DataJsons/combineddirs.json", True, "MushroomData/")
+def train_unet(epochs=15, batch_size=16, learning_rate=0.001, num_time_steps=1000, file_base="unet.pt",
+               vae_file="PTFiles/vae_128.pt", vae_latent_channels=8, dropout=0.0, load_file=None, previous_epochs=0,
+               warmup_steps=2500, latent_width=8, given_vae=None, num_classes=100, down_passes=4):
     dataset = mushroomdata.MushroomData("DataJsons/combineddirs.json", True, "CleanedData/", halve=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using {device}.")
-    
+
     if given_vae is None:
         vae_model = VAE(latent_channels=vae_latent_channels)
         vae_model.load_state_dict(torch.load(vae_file, map_location=device))
@@ -48,7 +46,7 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
     alpha_bars = torch.zeros(num_time_steps, device=device)
     alpha_bars[0] = alphas[0]
     for i in range(1, num_time_steps):
-        alpha_bars[i] = alphas[i] * alpha_bars[i-1]
+        alpha_bars[i] = alphas[i] * alpha_bars[i - 1]
 
     # unet_model = UNET(128, 256, num_classes, dropout_p=dropout, starting_scale=16).to(device)
     unet_model = GeneralizedUNet(128, 256, num_classes, down_passes).to(device)
@@ -60,7 +58,8 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
         unet_model.load_state_dict(checkpoint['model'])
         ema.load_state_dict(checkpoint['ema'])
 
-    time_encodings = nc.positional_encoding(num_time_steps, 128).to(device=device) # (num_time_steps, 64) array of time encodings
+    time_encodings = nc.positional_encoding(num_time_steps, 128).to(
+        device=device)  # (num_time_steps, 64) array of time encodings
 
     loss_fn = nn.MSELoss(reduction="mean")
     optimizer = torch.optim.Adam(unet_model.parameters(), lr=learning_rate)
@@ -82,15 +81,19 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
         # Make sure we don't go lower than min_lr_ratio
         return max(cosine * (1 - min_lr_ratio) + min_lr_ratio, min_lr_ratio)
 
+    print("Generating scheduler")
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
 
     labels = np.array([dataset[i][1] for i in range(len(dataset))])
+    print("counting start")
     class_counts = np.bincount(labels)
     class_weights = 1.0 / np.maximum(class_counts, 1)
+    print("classes weighted")
     class_weights = class_weights ** 0.5
     sample_weights = class_weights[labels]
+    print("class weighting complete")
     sampler = WeightedRandomSampler(weights=sample_weights, num_samples=len(sample_weights), replacement=True)
-
+    print("weighted random samplpler complete, training:")
     for epoch in range(previous_epochs, epochs):
         dataloader = DataLoader(dataset, batch_size, sampler=sampler)
         p_bar = tqdm(dataloader, desc=f"Epoch [{epoch + 1} / {epochs}]")
@@ -102,7 +105,7 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
             labels = labels.to(device)
 
             # time_step = np.random.randint(num_time_steps) + 1
-            time_steps = torch.randint(0,num_time_steps,(local_bs,),device=device)
+            time_steps = torch.randint(0, num_time_steps, (local_bs,), device=device)
 
             # Generate latents
             latents = vae_model.forward_encode_only_mean(ims).detach()
@@ -125,28 +128,19 @@ def train_unet(epochs=15, batch_size = 32, learning_rate = 0.001, num_time_steps
             scheduler.step()
 
             p_bar.set_postfix({
-                'Loss' : loss.item(),
-                'LR' : scheduler.get_last_lr()
+                'Loss': loss.item(),
+                'LR': scheduler.get_last_lr()
             })
 
         # scheduler.step()
-        torch.save({'model' : unet_model.state_dict(), 'ema' : ema.state_dict()}, f"PTFiles/{file_base}")
-        if (epoch + 1) % 30 == 0:
-            torch.save({'model' : unet_model.state_dict(), 'ema' : ema.state_dict()}, f"PTFiles/inprogress{epoch}{file_base}")
+        torch.save({'model': unet_model.state_dict(), 'ema': ema.state_dict()}, f"PTFiles/{file_base}")
+        if (epoch + 1) % 10 == 0:
+            torch.save({'model': unet_model.state_dict(), 'ema': ema.state_dict()},
+                       f"PTFiles/inprogress{epoch}{file_base}")
+
 
 if __name__ == '__main__':
-    # train_unet(epochs=50, batch_size=64, file_base="attention.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.1)
-    # train_unet(epochs=50, batch_size=64, file_base="attention1.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.1, load_file="PTFiles/attention.pt")
-    # train_unet(epochs=50, batch_size=64, file_base="attention2.pt", num_time_steps=1000, learning_rate=5e-5, dropout=0.1, load_file="PTFiles/attention1.pt")
+    train_unet(epochs=200, batch_size=16, file_base="unet_128_channelsup50percent.pt", num_time_steps=1000,
+               learning_rate=1e-4,
+               dropout=0, vae_file="PTFiles/vae_128.pt", latent_width=32, vae_latent_channels=4, num_classes=74)
 
-    # train_unet(epochs=150, batch_size=64, file_base="attention3.pt", num_time_steps=1000, learning_rate=5e-5, dropout=0.1, load_file="PTFiles/attention2.pt")
-    # train_unet(epochs=250, batch_size=64, file_base="deeper_atten2.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0.1, load_file="PTFiles/deeper_atten2.pt", previous_epochs=190)
-    # train_unet(epochs=150, batch_size=64, file_base="deeper_atten3.pt", num_time_steps=1000, learning_rate=3e-5, dropout=0.1, load_file="PTFiles/deeper_atten2.pt", previous_epochs=0, warmup_steps=0)
-
-
-    # train_unet(epochs=200, batch_size=64, file_base="more_channels.pt", num_time_steps=1000, learning_rate=1e-4, dropout=0, previous_epochs=110, load_file="PTFiles/more_channels.pt")
-
-    train_unet(epochs=200, batch_size=64, file_base="new_decoder_unet2.pt", num_time_steps=1000, learning_rate=1e-4,
-               dropout=0, previous_epochs=160, vae_file="PTFiles/attn_vae_64x64.pt", latent_width=16, load_file="PTFiles/new_decoder_unet.pt")
-    train_unet(epochs=200, batch_size=64, file_base="new_decoder_unetref.pt", num_time_steps=1000, learning_rate=3e-5,
-               dropout=0, previous_epochs=52, vae_file="PTFiles/attn_vae_64x64.pt", latent_width=16, load_file="PTFiles/new_decoder_unet.pt", warmup_steps=0)

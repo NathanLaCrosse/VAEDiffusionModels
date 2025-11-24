@@ -8,9 +8,7 @@ from tqdm import tqdm
 import NetworkComponents as nc
 
 class UNET(nn.Module):
-    """
-    A hard-coded model designed to train on 64x64 images encoded into an Nx8x8 latent space.
-    """
+
     def __init__(self, time_embed_dim, label_embed_dim, num_classes, dropout_p=0.0, starting_scale=8):
         super(UNET, self).__init__()
         #starting with a 8x8x8 latent
@@ -83,12 +81,7 @@ class UNET(nn.Module):
 
 
 class GeneralizedUNet(nn.Module):
-    """
-    A generalized form of the previous architecture that allows for the setting of down
-    passes. Additionally, concatenation is treated a bit different - there are 1x1 convolutions
-    to reduce channel count instead of the previous model which just upsampled with a large
-    channel bottleneck. Used in the final 128x128 model.
-    """
+
     def __init__(self, time_embed_dim, label_embed_dim, num_classes, down_passes,
                  dropout_p=0.0, starting_scale=32, latent_channels=4):
         super(GeneralizedUNet, self).__init__()
@@ -110,7 +103,7 @@ class GeneralizedUNet(nn.Module):
             nn.SiLU()
         )
 
-        channel_sizes = [32, 64, 128, 256, 512, 1024, 2048]
+        channel_sizes = [48, 96, 192, 384, 768, 1536, 3072]
         self.initial = nn.Conv2d(latent_channels, channel_sizes[0], 1)
         self.pass1 = nc.UNetLayer(channel_sizes[0], starting_scale, time_embed_dim, label_embed_dim, dropout_p)
 

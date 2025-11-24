@@ -51,5 +51,5 @@ print("Means:", means)
 print("Stds:", stds)
 
 # Load into a special file
-torch.save({'means':means, 'stds':stds}, "latent_channel_info.pt")
+torch.save({'means':means, 'stds':stds}, "LatentInfo/latent_channel_info.pt")
 

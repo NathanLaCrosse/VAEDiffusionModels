@@ -10,6 +10,7 @@ from UNetArchitecture import UNET, GeneralizedUNet
 from VAE_128 import VAE
 import matplotlib.pyplot as plt
 from torch_ema import ExponentialMovingAverage
+import cv2
 
 import json
 import os
@@ -41,7 +42,7 @@ unet = GeneralizedUNet(time_emb_dim, label_emb_dim, num_classes, 4)
 ema = ExponentialMovingAverage(unet.parameters(), decay=0.9999)
 
 # checkpoint = torch.load("PTFiles/cleaned_unet.pt", map_location=device)
-checkpoint = torch.load("PTFiles/unet128.pt", map_location=device)
+checkpoint = torch.load("PTFiles/unet_128_channelsup50percent.pt", map_location=device)
 unet.load_state_dict(checkpoint['model'])
 ema.load_state_dict(checkpoint['ema'])
 
@@ -57,15 +58,15 @@ alphas = 1 - betas
 alpha_bars = torch.zeros(num_time_steps, device=device)
 alpha_bars[0] = alphas[0]
 for i in range(1, num_time_steps):
-    alpha_bars[i] = alphas[i] * alpha_bars[i-1]
+    alpha_bars[i] = alphas[i] * alpha_bars[i - 1]
 
 time_encodings = nc.positional_encoding(num_time_steps, time_emb_dim).to(device)
 
-stats = torch.load("latent_channel_info.pt")
+stats = torch.load("LatentInfo/latent_channel_info.pt")
 latent_means = stats['means'].to(device).view(1, latent_channels, latent_dim, latent_dim)
 latent_stds = stats['stds'].to(device).view(1, latent_channels, latent_dim, latent_dim)
 
-#Graph components
+# Graph components
 rows = 2
 cols = 2
 
@@ -79,20 +80,21 @@ def denoise_latent(latent, unet, labels, alphas, betas, alpha_bars, time_encodin
     with torch.no_grad():
         with ema.average_parameters():
             while t > 0:
-                step_vect = time_encodings[t-1].unsqueeze(0).expand(bs, 128)
-                
+                step_vect = time_encodings[t - 1].unsqueeze(0).expand(bs, 128)
+
                 noise = unet(pred, step_vect, labels) * noise_scaling
 
-                pred = 1 / torch.sqrt(alphas[t-1]) * (pred - betas[t-1] / torch.sqrt(1 - alpha_bars[t-1]) * noise)
+                pred = 1 / torch.sqrt(alphas[t - 1]) * (pred - betas[t - 1] / torch.sqrt(1 - alpha_bars[t - 1]) * noise)
 
                 if t > 1:
-                    pred = pred + torch.sqrt(betas[t-1]) * torch.randn_like(pred)
+                    pred = pred + torch.sqrt(betas[t - 1]) * torch.randn_like(pred)
 
                 t -= 1
-            
+
             return pred
-          
-def plot_real_mushrooms(labels, mushroom_img_folder = 'MushroomData'):
+
+
+def plot_real_mushrooms(labels, mushroom_img_folder='CleanedData'):
     real_fig, real_ax = plt.subplots(rows, cols)
     real_fig.suptitle("Real Picture Examples", fontsize=16)
 
@@ -113,39 +115,45 @@ def plot_real_mushrooms(labels, mushroom_img_folder = 'MushroomData'):
     plt.tight_layout()
     plt.show(block=False)
 
+
 def denoise_step_by_step(latent, unet, alphas, betas, alpha_bars, time_encodings, total_noise_steps, label):
-    bs, _, _, _ = latent.size()
+    bs, _, height, width = latent.size()
     pred = latent
     t = total_noise_steps
-    fig, ax = plt.subplots(rows, cols)
-    title = fig.suptitle(f"Denoising Step: {total_noise_steps}", fontsize=16)
+
     with torch.no_grad():
-       original_noise  = vae.forward_decode_only(pred)
+        original_noise = vae.forward_decode_only(pred)
 
-    # makes it so that the plot is drawing from reference instead if instantiating a new image every time
-    image_references = []
+    def display_images(picture_batch):
+        pictures = []
+        for i in range(rows):
+            row_i_pictures = []
+            for j in range(cols):
+                picture = picture_batch[i * cols + j].to(cpu)
+                picture = (picture + 1) / 2
+                picture = picture.permute(1, 2, 0).numpy()
+                picture = (picture * 255).astype("uint8")
+                picture = cv2.cvtColor(picture, cv2.COLOR_RGB2BGR)
 
-    #plot the original noise, and set intialization for image location references
-    for i in range(rows):
-        for j in range(cols):
-            picture = original_noise[i * cols + j].to(cpu)
-            picture = (picture + 1) / 2
-            picture = picture.permute(1, 2, 0)
-            ref = ax[i, j].imshow(picture)
-            label_idx = label[i * cols + j].item()
-            species_name = idx2class[str(label_idx)]
-            ax[i, j].set_title(species_name, fontsize=9)
-            ax[i, j].axis("off")
-            image_references.append(ref)
+                row_i_pictures.append(picture)
+            pictures.append(np.hstack(row_i_pictures))
+        return np.vstack(pictures)
 
-    plt.tight_layout()
-    plt.pause(0.01)
+    frame = display_images(original_noise)
     plot_real_mushrooms(label)
+
+    title = "Step by step denoising animation"
+    cv2.namedWindow(title, cv2.WINDOW_NORMAL)
+    cv2.imshow(title, frame)
+    cv2.waitKey(1)
 
     with torch.no_grad():
         with ema.average_parameters():
             while t > 0:
-                title.set_text(f"Denoising Step: {t}")
+                cv2.waitKey(1)
+                index = label[0].item()
+                species = idx2class[str(index)]
+                cv2.setWindowTitle(title, f"Denoising Step {t}: {species}")
 
                 step_vect = time_encodings[t - 1].unsqueeze(0).expand(bs, time_emb_dim)
 
@@ -157,24 +165,16 @@ def denoise_step_by_step(latent, unet, alphas, betas, alpha_bars, time_encodings
                     pred = pred + torch.sqrt(betas[t - 1]) * torch.randn_like(pred)
 
                 # decode then plot the decoding step
-                decoded_pictures = vae.forward_decode_only(pred)
+                if t % 4 == 0:
+                    decoded = vae.forward_decode_only(pred)
+                    frame = display_images(decoded)
+                    cv2.imshow(title, frame)
 
-                for i in range(rows):
-                    for j in range(cols):
-                        picture = decoded_pictures[i * cols + j].to(cpu)
-                        picture = (picture + 1) / 2
-                        picture = picture.permute(1, 2, 0)
-                        image_references[i * cols + j].set_data(picture)
-
-                #update the canvas without remaking the window, with a pause
-                fig.canvas.draw_idle()
-                plt.pause(0.01)
-
-                #go down one time step
-                t  = t-1
-    plt.ioff()
-    plt.show()
+                # go down one time step
+                t = t - 1
+    cv2.waitKey(0)
     return pred
+
 
 def plot_final_result():
     # Actual testing stuff here
@@ -182,10 +182,11 @@ def plot_final_result():
     with torch.no_grad():
         while True:
 
-            samp = latent_means + latent_stds * sample_scaling * torch.randn((rows*cols, latent_channels, latent_dim, latent_dim), device=device)
+            samp = latent_means + latent_stds * sample_scaling * torch.randn(
+                (rows * cols, latent_channels, latent_dim, latent_dim), device=device)
             # samp = torch.randn((rows*cols, 8, 8, 8), device=device)
 
-            labels = torch.randint(0,num_classes,(rows*cols,), device=device)
+            labels = torch.randint(0, num_classes, (rows * cols,), device=device)
 
             denoised = denoise_latent(samp, unet, labels, alphas, betas, alpha_bars, time_encodings, denoise_steps)
 
@@ -195,9 +196,9 @@ def plot_final_result():
 
             for i in range(rows):
                 for k in range(cols):
-                    im = ims[i*cols + k].to(cpu)
+                    im = ims[i * cols + k].to(cpu)
                     im = (im + 1) / 2
-                    im = im.permute(1,2,0)
+                    im = im.permute(1, 2, 0)
 
                     ax[i, k].imshow(im)
                     ax[i, k].axis('off')
@@ -205,16 +206,19 @@ def plot_final_result():
             plt.tight_layout()
             plt.show()
 
+
 def plot_denoising_animation():
     with torch.no_grad():
         bs = rows * cols
-        samp = latent_means + latent_stds * sample_scaling * torch.randn((rows * cols, latent_channels, latent_dim, latent_dim), device=device)
+        samp = latent_means + latent_stds * sample_scaling * torch.randn(
+            (rows * cols, latent_channels, latent_dim, latent_dim), device=device)
 
-        labels = torch.randint(0, num_classes, (bs,), device=device)
+        # TODO:: Make this a choice of random or select a species
+        labels = torch.randint(1, 2, (bs,), device=device)
 
-        #latent, unet, alphas, betas, alpha_bars, time_encodings, total_noise_steps, label
+        # latent, unet, alphas, betas, alpha_bars, time_encodings, total_noise_steps, label
         denoise_step_by_step(samp, unet, alphas, betas, alpha_bars, time_encodings, num_time_steps, labels)
 
 
-# plot_denoising_animation()
-plot_final_result()
+plot_denoising_animation()
+# plot_final_result()

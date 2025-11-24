@@ -98,10 +98,21 @@ def plot_real_mushrooms(labels, mushroom_img_folder='CleanedData'):
     real_fig, real_ax = plt.subplots(rows, cols)
     real_fig.suptitle("Real Picture Examples", fontsize=16)
 
+    # Load label shift used by the cleaned data. Not all species are included in the
+    # final dataset, so we need to make sure to reference the right ones
+    shift = None
+    with open(f'DataJsons/cleaningshift.json', 'r') as file:
+        shift = json.load(file)
+
+    # Swap keys and values
+    swapped_shift = {}
+    for key in shift:
+        swapped_shift[shift[key]] = key
+
     for i in range(rows):
         for j in range(cols):
             label_idx = labels[i * cols + j].item()
-            species_name = idx2class[str(label_idx)]
+            species_name = idx2class[swapped_shift[label_idx]]
             species_folder = os.path.join(mushroom_img_folder, species_name)
             image_files = [picture for picture in os.listdir(species_folder) if picture.endswith(".png")]
             random_image = random.choice(image_files)
@@ -113,7 +124,7 @@ def plot_real_mushrooms(labels, mushroom_img_folder='CleanedData'):
             real_ax[i, j].axis("off")
 
     plt.tight_layout()
-    plt.show(block=False)
+    plt.show(block=True)
 
 
 def denoise_step_by_step(latent, unet, alphas, betas, alpha_bars, time_encodings, total_noise_steps, label):

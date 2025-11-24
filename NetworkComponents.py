@@ -240,7 +240,7 @@ class WeirdSelfAttention(nn.Module):
 
 class VAEResnetBlock(nn.Module):
     """
-    Blocks used in the construction of VAEs used in Matt_VAE.py, VAE_128,py, VAE_256.py
+    Blocks used in the construction of VAEs used in VAE_64.py, VAE_128,py, VAE_256.py
     """
     def __init__(self, in_channels, out_channels=None, isDownScaling=False, isUpscaling=False):
         super().__init__()

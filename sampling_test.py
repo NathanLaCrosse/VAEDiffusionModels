@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 import mushroomdata
-from Matt_VAE import VAE
+from VAE_64 import VAE
 import matplotlib.pyplot as plt
 import os
 

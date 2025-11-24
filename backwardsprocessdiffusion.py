@@ -62,6 +62,7 @@ for i in range(1, num_time_steps):
 
 time_encodings = nc.positional_encoding(num_time_steps, time_emb_dim).to(device)
 
+# Load mean and standard deviation of sampling space
 stats = torch.load("LatentInfo/latent_channel_info.pt")
 latent_means = stats['means'].to(device).view(1, latent_channels, latent_dim, latent_dim)
 latent_stds = stats['stds'].to(device).view(1, latent_channels, latent_dim, latent_dim)
@@ -195,7 +196,6 @@ def plot_final_result():
 
             samp = latent_means + latent_stds * sample_scaling * torch.randn(
                 (rows * cols, latent_channels, latent_dim, latent_dim), device=device)
-            # samp = torch.randn((rows*cols, 8, 8, 8), device=device)
 
             labels = torch.randint(0, num_classes, (rows * cols,), device=device)
 
@@ -224,7 +224,6 @@ def plot_denoising_animation():
         samp = latent_means + latent_stds * sample_scaling * torch.randn(
             (rows * cols, latent_channels, latent_dim, latent_dim), device=device)
 
-        # TODO:: Make this a choice of random or select a species
         labels = torch.randint(1, 2, (bs,), device=device)
 
         # latent, unet, alphas, betas, alpha_bars, time_encodings, total_noise_steps, label

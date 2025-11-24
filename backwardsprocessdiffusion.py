@@ -6,12 +6,14 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import NetworkComponents as nc
 import mushroomdata
-from UNetArchitecture import UNET, GeneralizedUNet
+from UNetArchitecture import GeneralizedUNet
 from VAE_128 import VAE
 import matplotlib.pyplot as plt
 from torch_ema import ExponentialMovingAverage
 import cv2
-
+import tkinter as tk
+from tkinter import ttk
+from PIL import Image, ImageTk
 import json
 import os
 import random
@@ -31,18 +33,28 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 with open('DataJsons/idx2class.json', 'r') as file:
     idx2class = json.load(file)
 
-# vae = VAE(8)
-# vae.load_state_dict(torch.load("PTFiles/cleaned_vae.pt", map_location=device))
+with open('DataJsons/cleaningshift.json', 'r') as file:
+    shift = json.load(file)
+
+new_shift = {}
+for key, name in shift.items():
+    new_shift[int(key)] = int(name)
+shift = new_shift
+
+swapped_shift = {}
+for old, new in shift.items():
+    swapped_shift[new] = old
+
+newidx2class = {}
+for new, old in swapped_shift.items():
+    newidx2class[new] = idx2class[str(old)]
 
 vae = VAE(4).to(device)
 vae.load_state_dict(torch.load("PTFiles/vae_128.pt", map_location=device))
-
-# unet = UNET(time_emb_dim, label_emb_dim, num_classes, starting_scale=16)
 unet = GeneralizedUNet(time_emb_dim, label_emb_dim, num_classes, 4)
 ema = ExponentialMovingAverage(unet.parameters(), decay=0.9999)
+checkpoint = torch.load("PTFiles/unet_128_new.pt", map_location=device)
 
-# checkpoint = torch.load("PTFiles/cleaned_unet.pt", map_location=device)
-checkpoint = torch.load("PTFiles/unet_128_channelsup50percent.pt", map_location=device)
 unet.load_state_dict(checkpoint['model'])
 ema.load_state_dict(checkpoint['ema'])
 
@@ -94,7 +106,6 @@ def denoise_latent(latent, unet, labels, alphas, betas, alpha_bars, time_encodin
 
             return pred
 
-
 def plot_real_mushrooms(labels, mushroom_img_folder='CleanedData'):
     real_fig, real_ax = plt.subplots(rows, cols)
     real_fig.suptitle("Real Picture Examples", fontsize=16)
@@ -125,8 +136,8 @@ def plot_real_mushrooms(labels, mushroom_img_folder='CleanedData'):
             real_ax[i, j].axis("off")
 
     plt.tight_layout()
-    plt.show(block=True)
-
+    plt.show(block=False)
+    plt.pause(0.1)
 
 def denoise_step_by_step(latent, unet, alphas, betas, alpha_bars, time_encodings, total_noise_steps, label):
     bs, _, height, width = latent.size()
@@ -164,7 +175,7 @@ def denoise_step_by_step(latent, unet, alphas, betas, alpha_bars, time_encodings
             while t > 0:
                 cv2.waitKey(1)
                 index = label[0].item()
-                species = idx2class[str(index)]
+                species = idx2class[str(swapped_shift[index])]
                 cv2.setWindowTitle(title, f"Denoising Step {t}: {species}")
 
                 step_vect = time_encodings[t - 1].unsqueeze(0).expand(bs, time_emb_dim)
@@ -186,7 +197,6 @@ def denoise_step_by_step(latent, unet, alphas, betas, alpha_bars, time_encodings
                 t = t - 1
     cv2.waitKey(0)
     return pred
-
 
 def plot_final_result():
     # Actual testing stuff here
@@ -217,6 +227,58 @@ def plot_final_result():
             plt.tight_layout()
             plt.show()
 
+def species_selection():
+    species_list = [newidx2class[k] for k in sorted(newidx2class.keys())]
+
+    selected = {"value": None}
+    root = tk.Tk()
+    root.title("Select Mushroom Species")
+
+    window = tk.Frame(root)
+    window.pack(padx=10, pady=10, anchor="n")
+
+    tk.Label(window, text="Choose a species:",font=("Arial", 14)).grid(row=0, column=0, columnspan=2, pady=5)
+
+    combo = ttk.Combobox(window, values=species_list, state="readonly", width=40)
+    combo.grid(row=1, column=0, pady=5)
+    combo.current(0)
+
+    picture_label = tk.Label(window)
+    picture_label.grid(row=1, column=1)
+
+    def preview(event=None):
+        species = combo.get()
+        for key, value in newidx2class.items():
+            if (value == species):
+                new_label = key
+        orig_label = swapped_shift[new_label]
+        species_folder = os.path.join("CleanedData", idx2class[str(orig_label)])
+        images = [f for f in os.listdir(species_folder) if f.endswith(".png")]
+        img_path = os.path.join(species_folder, random.choice(images))
+
+        pic = Image.open(img_path).convert("RGB")
+        pic = pic.resize((200, 200))
+        pic_tk = ImageTk.PhotoImage(pic)
+
+        picture_label.img_tk = pic_tk
+        picture_label.config(image=pic_tk)
+
+
+    def submit():
+        selected["value"] = combo.get()
+        root.destroy()
+
+    combo.bind("<<ComboboxSelected>>", preview)
+    tk.Button(window, text="Select", command=submit).grid(row=3, column=0, pady=10)
+    preview()
+    root.mainloop()
+
+    chosen_name = selected["value"]
+
+    for key, value in newidx2class.items():
+        if (value == chosen_name):
+            label = key
+    return label
 
 def plot_denoising_animation():
     with torch.no_grad():
@@ -224,11 +286,10 @@ def plot_denoising_animation():
         samp = latent_means + latent_stds * sample_scaling * torch.randn(
             (rows * cols, latent_channels, latent_dim, latent_dim), device=device)
 
-        labels = torch.randint(1, 2, (bs,), device=device)
-
+        selected_species = species_selection()
+        labels = torch.tensor([selected_species] * bs, device=device)
         # latent, unet, alphas, betas, alpha_bars, time_encodings, total_noise_steps, label
         denoise_step_by_step(samp, unet, alphas, betas, alpha_bars, time_encodings, num_time_steps, labels)
-
 
 plot_denoising_animation()
 # plot_final_result()

@@ -12,6 +12,7 @@ The model runs off of two different base models. A UNet and VAE architecture. Th
 ### UNet:
 
 ### VAE:
+The goal of the VAE is to encode the image information into a smaller latent space which is normally distributed by using KL divergence and be able to reconstruct the encoded image with minimal information loss. Our VAE used residual blocks to compress latents down to 4x16x16 from 3-color channel 64x64 pixel images, and 4x32x32 sized latents from the 128x128 3-color channel images to match similar latent dimentions to the stable diffusion paper. 
 
 ## Results:
 Below is a sample of the results we got from our model.
